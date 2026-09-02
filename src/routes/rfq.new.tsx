@@ -337,7 +337,8 @@ function NewRfqPage() {
                   <li key={`l${i}`}>
                     <span className="rail-label">Line item · {pending?.lineMode}</span>
                     <div className="num break-words">
-                      {String(l.description ?? l.sku ?? "")} · qty {String(l.quantity ?? "—")} {String(l.uom ?? "")}
+                      {String(l["description"] ?? l["sku"] ?? "")} · qty {String(l["quantity"] ?? "—")}{" "}
+                      {String(l["uom"] ?? "")}
                     </div>
                   </li>
                 ))}
