@@ -109,7 +109,6 @@ function RfqPage() {
       <RfqGrid rows={summaries} />
 
 
-      </div>
 
       <div className="grid gap-4 lg:grid-cols-4">
         <Stat label="Line items" value={String(rfq.lineItems.length)} sub="across 6 sub-categories" />
