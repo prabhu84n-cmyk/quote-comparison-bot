@@ -340,7 +340,7 @@ function AnalystPage() {
               }
             }}
             rows={2}
-            placeholder="Ask anything about these five quotes…"
+            placeholder="Ask anything about the vendor quotes…"
             className="resize-none border-0 bg-transparent text-[13px] shadow-none focus-visible:ring-0"
           />
           <div className="flex items-center justify-between px-1">
