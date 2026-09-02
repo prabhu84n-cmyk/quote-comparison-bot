@@ -160,12 +160,13 @@ export const askAnalyst = createServerFn({ method: "POST" })
     });
 
     const parsed = parseJsonLoose<AnalystAnswer>(raw);
+    const nameMap = buildVendorNameMap(data.extractions as VendorExtraction[], (data.rfqDoc as Rfq | undefined) ?? seedRfq);
     return {
-      answer: parsed.answer ?? "No answer produced.",
+      answer: humanizeVendorIds(parsed.answer ?? "No answer produced.", nameMap),
       table: parsed.table ?? null,
       chart: parsed.chart ?? null,
-      caveats: parsed.caveats ?? [],
-      basis: parsed.basis ?? [],
+      caveats: (parsed.caveats ?? []).map((c) => humanizeVendorIds(c, nameMap)),
+      basis: (parsed.basis ?? []).map((b) => humanizeVendorIds(b, nameMap)),
       csv: parsed.csv ?? null,
     };
   });
