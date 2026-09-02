@@ -46,8 +46,12 @@ function statedText(l: ExtractedLine, fallbackCurrency: string): string {
     .replace(/\s{2,}/g, " ")
     .replace(/^[\s,\-–—:/]+|[\s,\-–—:/]+$/g, "")
     .trim();
-  const basis = wording.length > 2 ? wording : canonical;
+  let basis = wording.length > 2 ? wording : canonical;
+  // Keep the pricing unit visible even when the vendor's wording omits it.
+  const unitToken = p.basis === "per_kg" ? /\/\s*kg|per\s*kg|\bkg\b/i : p.basis === "per_pack" ? /pack|bundle|box|carton of|\bset\b/i : /piece|unit|pc\b|each|roll|sheet/i;
+  if (basis !== canonical && !unitToken.test(basis)) basis = `${canonical} — ${basis}`;
   return `${cur} ${p.amount.toLocaleString("en-IN")} ${basis}`;
+
 }
 
 
