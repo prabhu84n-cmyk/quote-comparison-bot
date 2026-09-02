@@ -26,10 +26,24 @@ const EMPTY_SLICE: RfqSlice = { states: {}, extractions: [], overrides: {}, awar
 
 type ByRfq = Record<string, RfqSlice>;
 
+export interface QuestionnaireAttachment {
+  base64: string;
+  mime: string;
+  kind: VendorInbox["kind"];
+  fileLabel: string;
+  vendorName: string;
+}
+
 interface WorkspaceValue {
   byRfq: ByRfq;
   setSlice: (rfqId: string, fn: (s: RfqSlice) => RfqSlice) => void;
   runVendorFor: (rfqId: string, v: VendorInbox, doc?: Rfq) => Promise<void>;
+  attachQuestionnaireFor: (
+    rfqId: string,
+    vendorId: string,
+    file: QuestionnaireAttachment,
+    doc?: Rfq,
+  ) => Promise<void>;
 }
 
 const Ctx = createContext<WorkspaceValue | null>(null);
@@ -38,7 +52,9 @@ const FALLBACK_CTX: WorkspaceValue = {
   byRfq: {},
   setSlice: () => {},
   runVendorFor: async () => {},
+  attachQuestionnaireFor: async () => {},
 };
+
 
 const STORAGE = "aerchain.workspace.v2";
 const LEGACY_STORAGE = "aerchain.workspace.v1";
