@@ -14,9 +14,10 @@ import {
   AlertCircle,
   Upload,
   Trash2,
+  FileUp,
 } from "lucide-react";
 import { vendors } from "@/data/vendors";
-import { addUpload, kindForFile, removeUpload, uploadToInbox, useUploads, type DocType } from "@/state/uploads";
+import { addUpload, kindForFile, removeUpload, replaceUpload, uploadToInbox, useUploads, type DocType } from "@/state/uploads";
 import { rfq } from "@/data/rfq";
 import { useWorkspace } from "@/state/workspace";
 import { useRfqStore } from "@/state/rfqs";
