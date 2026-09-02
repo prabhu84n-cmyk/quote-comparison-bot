@@ -56,7 +56,8 @@ function InboxPage() {
   const { states, extractions, runVendor, runAll, resetAll, busy } = useWorkspace();
   const rfqVendors = rfqId === rfq.id ? vendors : [];
   const [open, setOpen] = useState<string>(vendors[0]!.id);
-  const active = rfqVendors.find((v) => v.id === open) ?? rfqVendors[0];
+  // Non-null: whenever the detail panel renders, rfqVendors is non-empty.
+  const active = (rfqVendors.find((v) => v.id === open) ?? rfqVendors[0])!;
   const activeExtraction = active ? extractions.find((e) => e.vendorId === active.id) : undefined;
   const ActiveIcon = active ? ICONS[active.kind] : Mail;
 
