@@ -34,6 +34,12 @@ interface WorkspaceValue {
 
 const Ctx = createContext<WorkspaceValue | null>(null);
 
+const FALLBACK_CTX: WorkspaceValue = {
+  byRfq: {},
+  setSlice: () => {},
+  runVendorFor: async () => {},
+};
+
 const STORAGE = "aerchain.workspace.v2";
 const LEGACY_STORAGE = "aerchain.workspace.v1";
 
@@ -154,8 +160,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
  */
 export function useWorkspace(rfqId?: string, doc?: Rfq) {
   const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useWorkspace must be used inside WorkspaceProvider");
-  const { byRfq, setSlice, runVendorFor } = ctx;
+  // A stale HMR module copy can briefly see an empty context; degrade instead of
+  // blanking the page.
+  const { byRfq, setSlice, runVendorFor } = ctx ?? FALLBACK_CTX;
 
   const id = rfqId ?? "";
   const slice = (rfqId ? byRfq[rfqId] : undefined) ?? EMPTY_SLICE;
