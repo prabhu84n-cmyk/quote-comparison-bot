@@ -34,6 +34,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Panel, Tag, Confidence } from "@/components/Primitives";
+import { QuestionnaireUpload } from "@/components/QuestionnaireUpload";
 import type { SourceKind } from "@/lib/types";
 
 export const Route = createFileRoute("/inbox")({
@@ -71,7 +72,10 @@ function InboxPage() {
   const { rfq: rfqId = rfq.id } = Route.useSearch();
   const { getRfq } = useRfqStore();
   const doc = getRfq(rfqId) ?? undefined;
-  const { states, extractions, runVendor, runAll, resetAll, busy } = useWorkspace(rfqId, doc);
+  const { states, extractions, runVendor, runAll, resetAll, busy, attachQuestionnaire } = useWorkspace(
+    rfqId,
+    doc,
+  );
   const uploads = useUploads(rfqId);
   const rfqVendors = [
     ...(rfqId === rfq.id ? vendors : []),

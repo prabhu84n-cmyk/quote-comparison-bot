@@ -324,7 +324,17 @@ function ComparePage() {
         </div>
       </Panel>
 
-      <Panel title="Questionnaire responses" hint="scored against buyer thresholds">
+      <Panel
+        title="Questionnaire responses"
+        hint="scored against buyer thresholds"
+        actions={
+          <QuestionnaireUpload
+            vendors={comparison.summaries.map((s) => ({ id: s.vendorId, name: s.name }))}
+            busy={busy}
+            onAttach={attachQuestionnaire}
+          />
+        }
+      >
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-[13px]">
             <thead>
