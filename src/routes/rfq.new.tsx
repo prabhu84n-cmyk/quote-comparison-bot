@@ -302,7 +302,11 @@ function NewRfqPage() {
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="rail-label">
-              {recording ? "Recording — click stop when done" : transcribing ? "Transcribing…" : "⌘↵ to send"}
+              {recording
+                ? "Recording — text appears as you speak, click stop when done"
+                : transcribing
+                  ? "Polishing transcript…"
+                  : "⌘↵ to send"}
             </span>
             <div className="flex items-center gap-2">
               <Button
