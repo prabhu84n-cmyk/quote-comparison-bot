@@ -39,7 +39,7 @@ const HEADER_FIELDS: [keyof Rfq, string][] = [
 
 function RfqDetailPage() {
   const { id } = Route.useParams();
-  const { getRfq, statusOf, setStatus } = useRfqStore();
+  const { getRfq, statusOf } = useRfqStore();
   const rfq = getRfq(id);
 
   const [patch, setPatch] = useState<Record<string, string>>({});
