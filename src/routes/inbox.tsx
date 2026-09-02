@@ -21,6 +21,9 @@ import { Panel, Tag, Confidence } from "@/components/Primitives";
 import type { SourceKind } from "@/lib/types";
 
 export const Route = createFileRoute("/inbox")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    rfq: typeof search.rfq === "string" && search.rfq ? search.rfq : rfq.id,
+  }),
   head: () => ({
     meta: [
       { title: "Vendor Inbox — Quote Ingestion" },
