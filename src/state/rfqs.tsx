@@ -18,11 +18,13 @@ export interface RfqSummary {
 
 interface StoreState {
   custom: Rfq[];
+  /** Edited versions of RFQs, keyed by id (covers the seeded demo RFQ too). */
+  overrides: Record<string, Rfq>;
   statuses: Record<string, RfqStatus>;
 }
 
 const STORAGE = "aerchain.rfqs.v1";
-const EMPTY: StoreState = { custom: [], statuses: {} };
+const EMPTY: StoreState = { custom: [], overrides: {}, statuses: {} };
 
 let state: StoreState = EMPTY;
 let loaded = false;
@@ -47,10 +49,16 @@ async function hydrateFromDb() {
       .select("id,status,doc")
       .order("created_at", { ascending: true });
     if (error || !data) return;
-    const custom = data.map((row) => row.doc as unknown as Rfq);
+    const custom: Rfq[] = [];
+    const overrides = { ...state.overrides };
     const statuses = { ...state.statuses };
-    for (const row of data) statuses[row.id] = row.status as RfqStatus;
-    commit({ custom, statuses });
+    for (const row of data) {
+      const doc = row.doc as unknown as Rfq;
+      if (row.id === seedRfq.id) overrides[row.id] = doc;
+      else custom.push(doc);
+      statuses[row.id] = row.status as RfqStatus;
+    }
+    commit({ custom, overrides, statuses });
   } catch {
     /* offline: fall back to cache */
   }
@@ -78,10 +86,23 @@ const getSnapshot = () => {
 };
 const getServerSnapshot = () => EMPTY;
 
+function rowFor(r: Rfq, status: RfqStatus) {
+  return {
+    id: r.id,
+    title: r.title,
+    product_category: r.productCategory,
+    status,
+    line_items: r.lineItems.length,
+    submission_deadline: r.submissionDeadline,
+    doc: r as unknown as never,
+  };
+}
+
 export function useRfqStore() {
   const s = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  const all: Rfq[] = [seedRfq, ...s.custom];
+  const resolve = (r: Rfq) => s.overrides[r.id] ?? r;
+  const all: Rfq[] = [resolve(seedRfq), ...s.custom.map(resolve)];
   const statusOf = (id: string): RfqStatus =>
     s.statuses[id] ?? (id === seedRfq.id ? "Waiting for Quotes" : "Draft");
 
@@ -106,18 +127,22 @@ export function useRfqStore() {
     },
     addRfq: async (r: Rfq, status: RfqStatus = "Draft") => {
       commit({
+        ...state,
         custom: [...state.custom, r],
         statuses: { ...state.statuses, [r.id]: status },
       });
-      const { error } = await supabase.from("rfqs").insert({
-        id: r.id,
-        title: r.title,
-        product_category: r.productCategory,
-        status,
-        line_items: r.lineItems.length,
-        submission_deadline: r.submissionDeadline,
-        doc: r as unknown as never,
+      const { error } = await supabase.from("rfqs").insert(rowFor(r, status));
+      if (error) throw error;
+    },
+    /** Persists a manually or copilot edited RFQ. */
+    updateRfq: async (r: Rfq) => {
+      const status = statusOf(r.id);
+      commit({
+        ...state,
+        custom: state.custom.map((c) => (c.id === r.id ? r : c)),
+        overrides: { ...state.overrides, [r.id]: r },
       });
+      const { error } = await supabase.from("rfqs").upsert(rowFor(r, status), { onConflict: "id" });
       if (error) throw error;
     },
   };
