@@ -103,6 +103,16 @@ function NewRfqPage() {
     if (!head.title.trim()) return setError("Give the RFQ a name.");
     const kept = lines.filter((l) => l.description.trim() || l.sku.trim());
     if (!kept.length) return setError("Add at least one line item with a description.");
+    const keptQuestions = questions.filter((q) => q.question.trim());
+    if (keptQuestions.length > 0) {
+      const total = keptQuestions.reduce((s, q) => s + (Number(q.weight) || 0), 0);
+      if (total !== 100) {
+        return setError(
+          `Questionnaire weights must add up to 100% — they currently total ${total}%. Adjust the weights before saving.`,
+        );
+      }
+    }
+
 
     const id = nextRfqId(rfqs.map((r) => r.id));
     const created: Rfq = {
