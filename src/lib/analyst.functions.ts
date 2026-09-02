@@ -100,6 +100,25 @@ function buildContext(extractions: VendorExtraction[], awards: Record<string, st
   return lines.join("\n");
 }
 
+/** Maps every vendorId present in the comparison to the vendor's display name. */
+function buildVendorNameMap(extractions: VendorExtraction[], rfq: Rfq = seedRfq) {
+  const comparison = buildComparison(extractions as VendorExtraction[], {}, rfq);
+  return Object.fromEntries(comparison.summaries.map((s) => [s.vendorId, s.name])) as Record<
+    string,
+    string
+  >;
+}
+
+/** Replaces raw vendorIds in a text block with the corresponding vendor names. */
+function humanizeVendorIds(text: string, map: Record<string, string>) {
+  const ids = Object.keys(map).sort((a, b) => b.length - a.length);
+  let out = text;
+  for (const id of ids) {
+    out = out.split(id).join(map[id]!);
+  }
+  return out;
+}
+
 const SYSTEM = `You are the procurement analyst copilot inside a quote-comparison tool. A buyer with a large committed spend is deciding an award from the comparison below.
 
 Hard rules:
@@ -110,6 +129,7 @@ Hard rules:
 - When you recommend, name the basis you used (price / compliance / qualification / delivery / risk) in "basis".
 - Currency-converted and per-kg-derived values rest on buyer assumptions. Flag them when they drive the conclusion.
 - Be concise and specific. Numbers in Indian format where natural. No filler.
+- Refer to vendors by their display names (the "name" column in VENDOR SUMMARY), never by raw vendorId strings.
 
 Return ONE JSON object:
 {
@@ -141,12 +161,13 @@ export const askAnalyst = createServerFn({ method: "POST" })
     });
 
     const parsed = parseJsonLoose<AnalystAnswer>(raw);
+    const nameMap = buildVendorNameMap(data.extractions as VendorExtraction[], (data.rfqDoc as Rfq | undefined) ?? seedRfq);
     return {
-      answer: parsed.answer ?? "No answer produced.",
+      answer: humanizeVendorIds(parsed.answer ?? "No answer produced.", nameMap),
       table: parsed.table ?? null,
       chart: parsed.chart ?? null,
-      caveats: parsed.caveats ?? [],
-      basis: parsed.basis ?? [],
+      caveats: (parsed.caveats ?? []).map((c) => humanizeVendorIds(c, nameMap)),
+      basis: (parsed.basis ?? []).map((b) => humanizeVendorIds(b, nameMap)),
       csv: parsed.csv ?? null,
     };
   });
