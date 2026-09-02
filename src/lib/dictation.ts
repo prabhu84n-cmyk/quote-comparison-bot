@@ -92,7 +92,7 @@ type SpeechRecognitionLike = {
 
 function speechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
   const w = window as unknown as Record<string, unknown>;
-  return (w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null) as
+  return (w["SpeechRecognition"] ?? w["webkitSpeechRecognition"] ?? null) as
     | (new () => SpeechRecognitionLike)
     | null;
 }
@@ -119,6 +119,7 @@ export class LiveTranscriber {
       let interim = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
+        if (!r) continue;
         if (r.isFinal) this.finalText += r[0].transcript + " ";
         else interim += r[0].transcript;
       }
