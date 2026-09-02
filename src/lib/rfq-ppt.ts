@@ -100,18 +100,20 @@ export async function buildRfqPptxBlob(rfq: Rfq): Promise<Blob> {
   lines.addTable(
     [
       head(["#", "Item number", "Description", "Specification", "Qty", "UOM", "kg/unit", "Required by", "Substitute", "Unit price"]),
-      ...rfq.lineItems.map((l) => [
-        String(l.lineNo),
-        l.sku,
-        l.description,
-        l.specification,
-        l.quantity.toLocaleString("en-IN"),
-        l.uom,
-        String(l.kgPerUnit),
-        l.requiredBy,
-        l.substituteAllowed ? "Allowed" : "No",
-        "",
-      ]),
+      ...rfq.lineItems.map((l) =>
+        [
+          String(l.lineNo),
+          l.sku,
+          l.description,
+          l.specification,
+          l.quantity.toLocaleString("en-IN"),
+          l.uom,
+          String(l.kgPerUnit),
+          l.requiredBy,
+          l.substituteAllowed ? "Allowed" : "No",
+          "",
+        ].map((text) => ({ text })),
+      ),
     ],
     { ...tableOpts, y: 1.3, fontSize: 8, colW: [0.4, 1.2, 2.5, 3.03, 0.8, 0.7, 0.7, 1.1, 0.9, 1.0] },
   );
@@ -124,7 +126,9 @@ export async function buildRfqPptxBlob(rfq: Rfq): Promise<Blob> {
   q.addTable(
     [
       head(["Ref", "Qualification question", "Your response"]),
-      ...rfq.questionnaire.map((item) => [item.id, item.question, ""]),
+      ...rfq.questionnaire.map((item) =>
+        [item.id, item.question, ""].map((text) => ({ text })),
+      ),
     ],
     { ...tableOpts, y: 1.3, fontSize: 9, colW: [0.9, 7.43, 4.0] },
   );
