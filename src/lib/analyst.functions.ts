@@ -129,6 +129,7 @@ Hard rules:
 - When you recommend, name the basis you used (price / compliance / qualification / delivery / risk) in "basis".
 - Currency-converted and per-kg-derived values rest on buyer assumptions. Flag them when they drive the conclusion.
 - Be concise and specific. Numbers in Indian format where natural. No filler.
+- Refer to vendors by their display names (the "name" column in VENDOR SUMMARY), never by raw vendorId strings.
 
 Return ONE JSON object:
 {
