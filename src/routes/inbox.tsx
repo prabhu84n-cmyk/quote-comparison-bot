@@ -57,6 +57,8 @@ function InboxPage() {
   const rfqVendors = rfqId === rfq.id ? vendors : [];
   const [open, setOpen] = useState<string>(vendors[0]!.id);
   const active = rfqVendors.find((v) => v.id === open) ?? rfqVendors[0];
+  const activeExtraction = active ? extractions.find((e) => e.vendorId === active.id) : undefined;
+  const ActiveIcon = active ? ICONS[active.kind] : Mail;
 
   return (
     <div className="space-y-5">
@@ -70,27 +72,50 @@ function InboxPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={resetAll} disabled={busy}>
-            <RotateCcw className="size-4" /> Reset
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/rfq/$id" params={{ id: rfqId }}>
+              Back to RFQ
+            </Link>
           </Button>
-          <Button onClick={() => void runAll()} disabled={busy}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-            Extract all quotes
-          </Button>
-          {extractions.length > 0 && (
-            <Button variant="secondary" asChild>
-              <Link to="/compare">
-                Comparison <ArrowRight className="size-4" />
-              </Link>
-            </Button>
+          {rfqVendors.length > 0 && (
+            <>
+              <Button variant="ghost" size="sm" onClick={resetAll} disabled={busy}>
+                <RotateCcw className="size-4" /> Reset
+              </Button>
+              <Button onClick={() => void runAll()} disabled={busy}>
+                {busy ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
+                Extract all quotes
+              </Button>
+              {extractions.length > 0 && (
+                <Button variant="secondary" asChild>
+                  <Link to="/compare">
+                    Comparison <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
 
+      {rfqVendors.length === 0 ? (
+        <Panel title="Inbox" hint="0 messages">
+          <div className="grid min-h-[40vh] place-items-center p-10 text-center">
+            <div>
+              <Mail className="mx-auto size-8 text-muted-foreground" />
+              <h2 className="mt-4 text-base font-semibold tracking-tight">No responses received for this RFQ</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                No vendor quotes have arrived for <span className="num">{rfqId}</span> yet. Once vendors respond,
+                their messages will appear here and the AI extraction can run on them.
+              </p>
+            </div>
+          </div>
+        </Panel>
+      ) : (
       <div className="grid gap-5 lg:grid-cols-[380px_1fr]">
-        <Panel title="Inbox" hint={`${vendors.length} messages`}>
+        <Panel title="Inbox" hint={`${rfqVendors.length} messages`}>
           <ul className="divide-y divide-border">
-            {vendors.map((v) => {
+            {rfqVendors.map((v) => {
               const st = states[v.id]?.status ?? "idle";
               const Icon = ICONS[v.kind];
               const selected = v.id === open;
