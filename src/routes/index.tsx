@@ -53,6 +53,7 @@ function RfqPage() {
   const [pending, setPending] = useState<RfqChange[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { summaries, statusOf, setStatus } = useRfqStore();
 
   const live = { ...rfq, ...patch } as typeof rfq & Record<string, string>;
 
@@ -88,6 +89,12 @@ function RfqPage() {
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{live.purpose}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <StatusSelect value={statusOf(rfq.id)} onChange={(s) => setStatus(rfq.id, s)} />
+          <Button variant="secondary" asChild>
+            <Link to="/rfq/new">
+              <Plus className="size-4" /> New RFQ
+            </Link>
+          </Button>
           <Button variant="secondary" onClick={() => downloadRfqPdf(live)}>
             <Download className="size-4" /> Download RFQ (PDF)
           </Button>
@@ -97,6 +104,11 @@ function RfqPage() {
             </Link>
           </Button>
         </div>
+      </div>
+
+      <RfqGrid rows={summaries} />
+
+
       </div>
 
       <div className="grid gap-4 lg:grid-cols-4">
