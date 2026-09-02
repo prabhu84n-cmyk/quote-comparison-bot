@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, Check, Loader2, Mic, Plus, Save, Sparkles, Square, Trash2 } from "lucide-react";
+import { Dictation, transcribe } from "@/lib/dictation";
+import { draftRfqFromText, type DraftPatch } from "@/lib/rfq-draft.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -93,6 +95,105 @@ function NewRfqPage() {
   const [questions, setQuestions] = useState<QuestionnaireItem[]>([emptyQuestion(1)]);
   const [error, setError] = useState<string | null>(null);
 
+  // ---- drafting copilot ----
+  const [instruction, setInstruction] = useState("");
+  const [thread, setThread] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [pending, setPending] = useState<DraftPatch | null>(null);
+  const [reply, setReply] = useState<DraftPatch | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const dictation = useRef<Dictation | null>(null);
+
+  const currentForm = () => ({
+    ...head,
+    lineItems: lines.filter((l) => l.description.trim() || l.sku.trim()),
+    questionnaire: questions.filter((q) => q.question.trim()),
+  });
+
+  async function askCopilot() {
+    const q = instruction.trim();
+    if (!q || aiLoading) return;
+    setAiLoading(true);
+    setAiError(null);
+    setInstruction("");
+    try {
+      const res = await draftRfqFromText({ data: { instruction: q, form: currentForm(), history: thread } });
+      setThread((t) => [...t, { role: "user", content: q }, { role: "assistant", content: res.reply }]);
+      setReply(res);
+      setPending(res);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function applyPatch() {
+    if (!pending) return;
+    const p = pending;
+    setPending(null);
+    if (Object.keys(p.header).length) setHead((h) => ({ ...h, ...p.header }) as typeof h);
+    if (p.lineItems.length) {
+      const mapped = p.lineItems.map((raw) => {
+        const base = emptyLine();
+        const l: LineDraft = { ...base };
+        for (const [k, v] of Object.entries(raw)) {
+          if (!(k in base) || v == null) continue;
+          const key = k as keyof LineDraft;
+          const cur = base[key];
+          (l as Record<string, unknown>)[key] =
+            typeof cur === "number" ? Number(v) || 0 : typeof cur === "boolean" ? Boolean(v) : String(v);
+        }
+        return l;
+      });
+      setLines((ls) => {
+        const kept = p.lineMode === "replace" ? [] : ls.filter((l) => l.description.trim() || l.sku.trim());
+        return [...kept, ...mapped];
+      });
+    }
+    if (p.questionnaire.length) {
+      setQuestions((qs) => {
+        const kept = p.questionMode === "replace" ? [] : qs.filter((q) => q.question.trim());
+        const merged = [...kept, ...p.questionnaire.map((q) => ({ ...q, id: "" }))];
+        return merged.map((q, i) => ({ ...q, id: `Q${i + 1}` }));
+      });
+    }
+    setError(null);
+  }
+
+  async function toggleMic() {
+    if (recording) {
+      setRecording(false);
+      setTranscribing(true);
+      try {
+        const blob = await dictation.current!.stop();
+        const text = await transcribe(blob);
+        if (text.trim()) setInstruction((v) => (v ? `${v} ${text.trim()}` : text.trim()));
+        else setAiError("Nothing was picked up — try recording again.");
+      } catch (e) {
+        setAiError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setTranscribing(false);
+      }
+      return;
+    }
+    setAiError(null);
+    try {
+      dictation.current = new Dictation();
+      await dictation.current.start();
+      setRecording(true);
+    } catch {
+      setAiError("Microphone access is needed to dictate. Allow it in your browser and try again.");
+    }
+  }
+
+  const pendingCount =
+    (pending ? Object.keys(pending.header).length : 0) +
+    (pending?.lineItems.length ?? 0) +
+    (pending?.questionnaire.length ?? 0);
+
   const set = (k: keyof typeof head, v: string) => setHead((h) => ({ ...h, [k]: v }));
   const setLine = (i: number, patch: Partial<LineDraft>) =>
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -167,6 +268,103 @@ function NewRfqPage() {
       {error && (
         <p className="rounded-sm border border-risk/40 bg-risk-soft px-3 py-2 text-[13px] text-risk">{error}</p>
       )}
+
+      <Panel title="Drafting copilot" hint="Describe the RFQ — type or dictate">
+        <div className="space-y-3 p-4">
+          <Textarea
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void askCopilot();
+            }}
+            rows={3}
+            placeholder="e.g. Annual corrugated carton requirement for our Pune plant, 3-ply 150 GSM boxes, 10,000 pieces required by August, quotes due in two weeks. Ask vendors about ISO certification and lead time."
+            className="resize-none bg-background text-[13px]"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="rail-label">
+              {recording ? "Recording — click stop when done" : transcribing ? "Transcribing…" : "⌘↵ to send"}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={recording ? "destructive" : "secondary"}
+                onClick={() => void toggleMic()}
+                disabled={transcribing}
+              >
+                {transcribing ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : recording ? (
+                  <Square className="size-4" />
+                ) : (
+                  <Mic className="size-4" />
+                )}
+                {recording ? "Stop" : "Dictate"}
+              </Button>
+              <Button size="sm" onClick={() => void askCopilot()} disabled={aiLoading || !instruction.trim()}>
+                {aiLoading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                Draft RFQ
+              </Button>
+            </div>
+          </div>
+
+          {aiError && (
+            <p className="rounded-sm border border-risk/40 bg-risk-soft px-3 py-2 text-[13px] text-risk">{aiError}</p>
+          )}
+
+          {reply?.reply && (
+            <p className="rounded-sm border border-border bg-background/60 px-3 py-2.5 text-[13px] leading-relaxed">
+              {reply.reply}
+            </p>
+          )}
+
+          {pendingCount > 0 && (
+            <div className="rounded-sm border border-signal/40 bg-signal-soft p-3">
+              <div className="flex items-center justify-between">
+                <span className="rail-label text-signal">{pendingCount} proposed value(s)</span>
+                <Button size="sm" variant="secondary" onClick={applyPatch}>
+                  <Check className="size-3.5" /> Fill form
+                </Button>
+              </div>
+              <ul className="mt-2.5 space-y-1.5 text-[13px]">
+                {Object.entries(pending?.header ?? {}).map(([k, v]) => (
+                  <li key={k}>
+                    <span className="rail-label">{k}</span>
+                    <div className="num break-words">{v}</div>
+                  </li>
+                ))}
+                {(pending?.lineItems ?? []).map((l, i) => (
+                  <li key={`l${i}`}>
+                    <span className="rail-label">Line item · {pending?.lineMode}</span>
+                    <div className="num break-words">
+                      {String(l["description"] ?? l["sku"] ?? "")} · qty {String(l["quantity"] ?? "—")}{" "}
+                      {String(l["uom"] ?? "")}
+                    </div>
+                  </li>
+                ))}
+                {(pending?.questionnaire ?? []).map((q, i) => (
+                  <li key={`q${i}`}>
+                    <span className="rail-label">Question · weight {q.weight}%</span>
+                    <div className="num break-words">{q.question}</div>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Review the filled form, then click “Create RFQ” to save — nothing is saved automatically.
+              </p>
+            </div>
+          )}
+
+          {(reply?.gaps?.length ?? 0) > 0 && (
+            <div className="rounded-sm border border-warn/40 bg-warn-soft p-3">
+              <span className="rail-label text-warn">Still missing</span>
+              <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[13px]">
+                {reply?.gaps.map((g) => <li key={g}>{g}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      </Panel>
 
       <Panel title="RFQ header">
         <div className="grid gap-4 p-4 md:grid-cols-3">

@@ -15,6 +15,7 @@ import { Route as CompareRouteImport } from './routes/compare'
 import { Route as InboxRouteImport } from './routes/inbox'
 import { Route as RfqIdRouteImport } from './routes/rfq.$id'
 import { Route as RfqNewRouteImport } from './routes/rfq.new'
+import { Route as ApiPublicTranscribeRouteImport } from './routes/api/public/transcribe'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const RfqNewRoute = RfqNewRouteImport.update({
   path: '/rfq/new',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTranscribeRoute = ApiPublicTranscribeRouteImport.update({
+  id: '/api/public/transcribe',
+  path: '/api/public/transcribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof InboxRoute
   '/rfq/$id': typeof RfqIdRoute
   '/rfq/new': typeof RfqNewRoute
+  '/api/public/transcribe': typeof ApiPublicTranscribeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof InboxRoute
   '/rfq/$id': typeof RfqIdRoute
   '/rfq/new': typeof RfqNewRoute
+  '/api/public/transcribe': typeof ApiPublicTranscribeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,12 +79,27 @@ export interface FileRoutesById {
   '/inbox': typeof InboxRoute
   '/rfq/$id': typeof RfqIdRoute
   '/rfq/new': typeof RfqNewRoute
+  '/api/public/transcribe': typeof ApiPublicTranscribeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/analyst' | '/compare' | '/inbox' | '/rfq/$id' | '/rfq/new'
+  fullPaths:
+    | '/'
+    | '/analyst'
+    | '/compare'
+    | '/inbox'
+    | '/rfq/$id'
+    | '/rfq/new'
+    | '/api/public/transcribe'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analyst' | '/compare' | '/inbox' | '/rfq/$id' | '/rfq/new'
+  to:
+    | '/'
+    | '/analyst'
+    | '/compare'
+    | '/inbox'
+    | '/rfq/$id'
+    | '/rfq/new'
+    | '/api/public/transcribe'
   id:
     | '__root__'
     | '/'
@@ -85,6 +108,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/rfq/$id'
     | '/rfq/new'
+    | '/api/public/transcribe'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -94,6 +118,7 @@ export interface RootRouteChildren {
   InboxRoute: typeof InboxRoute
   RfqIdRoute: typeof RfqIdRoute
   RfqNewRoute: typeof RfqNewRoute
+  ApiPublicTranscribeRoute: typeof ApiPublicTranscribeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -140,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RfqNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/transcribe': {
+      id: '/api/public/transcribe'
+      path: '/api/public/transcribe'
+      fullPath: '/api/public/transcribe'
+      preLoaderRoute: typeof ApiPublicTranscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -150,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   InboxRoute: InboxRoute,
   RfqIdRoute: RfqIdRoute,
   RfqNewRoute: RfqNewRoute,
+  ApiPublicTranscribeRoute: ApiPublicTranscribeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
