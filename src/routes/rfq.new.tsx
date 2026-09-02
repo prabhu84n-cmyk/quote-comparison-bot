@@ -1,6 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowLeft, Plus, Save, Trash2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, Check, Loader2, Mic, Plus, Save, Sparkles, Square, Trash2 } from "lucide-react";
+import { Dictation, transcribe } from "@/lib/dictation";
+import { draftRfqFromText, type DraftPatch } from "@/lib/rfq-draft.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
