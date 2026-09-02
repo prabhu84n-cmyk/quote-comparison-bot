@@ -24,7 +24,7 @@ export const rfq: Rfq = {
   "partialQuotationAllowed": true,
   "alternativeProductAllowed": true,
   "partialAwardAllowed": true,
-  "submissionInstructions": "Reply to this email with your quote and the completed questionnaire attached. Quote RFQ-2026-0417 in the subject line. Any document format is accepted.",
+  "submissionInstructions": "Reply to this email with your quote and the completed questionnaire attached. Any document format is accepted. Please do not edit the email subject line while replying as it contains the RFQ ID for automatic email processing.",
   "lineItems": [
     {
       "lineNo": 1,
