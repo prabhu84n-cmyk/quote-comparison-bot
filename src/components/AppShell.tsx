@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={n.to}
                   to={n.to}
-                  search={n.to === "/" ? undefined : activeRfq ? { rfq: activeRfq } : undefined}
+                  {...(n.to !== "/" && activeRfq ? { search: { rfq: activeRfq } } : {})}
                   className={[
                     "group relative flex items-center gap-2 rounded-sm px-3 py-1.5 text-[13px] transition-colors",
                     active
