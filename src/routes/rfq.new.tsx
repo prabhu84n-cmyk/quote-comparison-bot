@@ -49,6 +49,9 @@ const emptyLine = (): LineDraft => ({
   notes: "",
 });
 
+/** Auto SKU in the format AER-<year>-<3-digit sequence starting at 001>. */
+const skuFor = (index: number) => `AER-${new Date().getFullYear()}-${String(index + 1).padStart(3, "0")}`;
+
 const emptyQuestion = (i: number): QuestionnaireItem => ({
   id: `Q${i}`,
   question: "",
@@ -91,7 +94,7 @@ function NewRfqPage() {
       "Reply to this email with your quote and the completed questionnaire attached. Any document format is accepted.",
   });
   const [status, setStatus] = useState<RfqStatus>("Draft");
-  const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
+  const [lines, setLines] = useState<LineDraft[]>([{ ...emptyLine(), sku: skuFor(0) }]);
   const [questions, setQuestions] = useState<QuestionnaireItem[]>([emptyQuestion(1)]);
   const [error, setError] = useState<string | null>(null);
 
@@ -150,7 +153,7 @@ function NewRfqPage() {
       });
       setLines((ls) => {
         const kept = p.lineMode === "replace" ? [] : ls.filter((l) => l.description.trim() || l.sku.trim());
-        return [...kept, ...mapped];
+        return [...kept, ...mapped].map((l, i) => (l.sku.trim() ? l : { ...l, sku: skuFor(i) }));
       });
     }
     if (p.questionnaire.length) {
@@ -226,6 +229,7 @@ function NewRfqPage() {
       estimatedTotalQuantity: kept.reduce((s, l) => s + Number(l.quantity || 0), 0),
       lineItems: kept.map((l, i) => ({
         ...l,
+        sku: l.sku.trim() || skuFor(i),
         lineNo: i + 1,
         category: l.category || head.productCategory,
         deliveryLocation: l.deliveryLocation || head.deliveryLocation,
@@ -437,7 +441,7 @@ function NewRfqPage() {
         title="Line items"
         hint={`${lines.length} row(s)`}
         actions={
-          <Button size="sm" variant="secondary" onClick={() => setLines((l) => [...l, emptyLine()])}>
+          <Button size="sm" variant="secondary" onClick={() => setLines((l) => [...l, { ...emptyLine(), sku: skuFor(l.length) }])}>
             <Plus className="size-3.5" /> Add line
           </Button>
         }
