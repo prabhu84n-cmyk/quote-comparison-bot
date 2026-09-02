@@ -100,6 +100,25 @@ function buildContext(extractions: VendorExtraction[], awards: Record<string, st
   return lines.join("\n");
 }
 
+/** Maps every vendorId present in the comparison to the vendor's display name. */
+function buildVendorNameMap(extractions: VendorExtraction[], rfq: Rfq = seedRfq) {
+  const comparison = buildComparison(extractions as VendorExtraction[], {}, rfq);
+  return Object.fromEntries(comparison.summaries.map((s) => [s.vendorId, s.name])) as Record<
+    string,
+    string
+  >;
+}
+
+/** Replaces raw vendorIds in a text block with the corresponding vendor names. */
+function humanizeVendorIds(text: string, map: Record<string, string>) {
+  const ids = Object.keys(map).sort((a, b) => b.length - a.length);
+  let out = text;
+  for (const id of ids) {
+    out = out.split(id).join(map[id]!);
+  }
+  return out;
+}
+
 const SYSTEM = `You are the procurement analyst copilot inside a quote-comparison tool. A buyer with a large committed spend is deciding an award from the comparison below.
 
 Hard rules:
