@@ -186,6 +186,16 @@ function RfqDetailPage() {
 
   async function save() {
     if (!draft) return;
+    const q = draft.questionnaire ?? [];
+    if (q.length > 0) {
+      const total = q.reduce((s, item) => s + (Number(item.weight) || 0), 0);
+      if (total !== 100) {
+        setSaveError(
+          `Questionnaire weights must add up to 100% — they currently total ${total}%. Adjust the weights before saving.`,
+        );
+        return;
+      }
+    }
     setSaving(true);
     setSaveError(null);
     try {
