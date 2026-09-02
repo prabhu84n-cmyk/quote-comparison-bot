@@ -91,7 +91,7 @@ function NewRfqPage() {
     contractDuration: "12 months",
     currency: "INR",
     submissionInstructions:
-      "Reply to this email with your quote and the completed questionnaire attached. Any document format is accepted.",
+      "Reply to this email with your quote and the completed questionnaire attached. Any document format is accepted. Please do not edit the email subject line while replying as it contains the RFQ ID for automatic email processing.",
   });
   const [status, setStatus] = useState<RfqStatus>("Draft");
   const [lines, setLines] = useState<LineDraft[]>([{ ...emptyLine(), sku: skuFor(0) }]);
