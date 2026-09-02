@@ -331,43 +331,89 @@ function InboxPage() {
   );
 }
 
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024; // keep base64 payload within localStorage limits
+
+interface PickedFile {
+  name: string;
+  type: string;
+  size: number;
+  base64: string;
+}
+
 function UploadDialog({ rfqId, onAdded }: { rfqId: string; onAdded: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const [vendorName, setVendorName] = useState("");
   const [docType, setDocType] = useState<DocType>("both");
-  const [file, setFile] = useState<File | null>(null);
+  const [picked, setPicked] = useState<PickedFile | null>(null);
+  const [reading, setReading] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const submit = async () => {
+  // Read the file into memory the moment it is picked. Holding a File
+  // reference and reading it later fails with NotReadableError if the file
+  // changes on disk (sync folders, network drives) between pick and save.
+  const pickFile = async (f: File | null) => {
     setError(null);
-    if (!vendorName.trim()) return setError("Vendor name is required.");
-    if (!file) return setError("Pick a file to upload.");
-    setSaving(true);
+    setPicked(null);
+    if (!f) return;
+    if (f.size > MAX_UPLOAD_BYTES) {
+      setError(
+        `"${f.name}" is ${(f.size / 1024 / 1024).toFixed(1)} MB — the limit is 15 MB per file.`,
+      );
+      return;
+    }
+    setReading(true);
     try {
-      const buf = new Uint8Array(await file.arrayBuffer());
+      const buf = new Uint8Array(await f.arrayBuffer());
       let bin = "";
       const chunk = 0x8000;
       for (let i = 0; i < buf.length; i += chunk) bin += String.fromCharCode(...buf.subarray(i, i + chunk));
+      setPicked({
+        name: f.name,
+        type: f.type || "application/octet-stream",
+        size: f.size,
+        base64: btoa(bin),
+      });
+    } catch {
+      setError(
+        `"${f.name}" could not be read. If it sits in a synced or network folder (OneDrive, Drive, SharePoint), copy it to a local folder like Desktop and pick it again.`,
+      );
+    } finally {
+      setReading(false);
+    }
+  };
+
+  const submit = () => {
+    setError(null);
+    if (!vendorName.trim()) return setError("Vendor name is required.");
+    if (!picked) return setError("Pick a file to upload.");
+    setSaving(true);
+    try {
       const entry = addUpload({
         rfqId,
         vendorName: vendorName.trim(),
         docType,
-        fileLabel: file.name,
-        kind: kindForFile(file.name, file.type),
-        mime: file.type || "application/octet-stream",
-        base64: btoa(bin),
+        fileLabel: picked.name,
+        kind: kindForFile(picked.name, picked.type),
+        mime: picked.type,
+        base64: picked.base64,
         note: note.trim(),
       });
       onAdded(entry.id);
       setOpen(false);
       setVendorName("");
-      setFile(null);
+      setPicked(null);
       setNote("");
       setDocType("both");
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(
+        e instanceof DOMException && e.name === "QuotaExceededError"
+          ? "Browser storage is full — remove some uploaded responses and try again."
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
     } finally {
       setSaving(false);
     }
