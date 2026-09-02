@@ -72,10 +72,8 @@ function InboxPage() {
   const { rfq: rfqId = rfq.id } = Route.useSearch();
   const { getRfq } = useRfqStore();
   const doc = getRfq(rfqId) ?? undefined;
-  const { states, extractions, runVendor, runAll, resetAll, busy, attachQuestionnaire } = useWorkspace(
-    rfqId,
-    doc,
-  );
+  const { states, extractions, runVendor, runAll, resetAll, busy, attachQuestionnaire, removeVendor } =
+    useWorkspace(rfqId, doc);
   const uploads = useUploads(rfqId);
   const rfqVendors = [
     ...(rfqId === rfq.id ? vendors : []),
@@ -253,11 +251,15 @@ function InboxPage() {
                   variant="ghost"
                   size="sm"
                   onClick={() => {
+                    // Deleting the response also drops its extraction, cell
+                    // overrides and any line awards for this vendor — the
+                    // comparison rebuilds without them.
+                    removeVendor(active.id);
                     removeUpload(active.id);
                     setOpen(rfqVendors.find((v) => v.id !== active.id)?.id ?? "");
                   }}
                 >
-                  <Trash2 className="size-4" /> Remove upload
+                  <Trash2 className="size-4" /> Delete response
                 </Button>
               )}
 
