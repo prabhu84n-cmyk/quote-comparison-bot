@@ -248,6 +248,19 @@ function InboxPage() {
                 {active.hint}
               </p>
               {active.uploaded && (
+                <ReplaceResponse
+                  vendor={active}
+                  busy={busy}
+                  onReplaced={(v) => {
+                    // Old extraction, overrides and awards go first; the new
+                    // file is then extracted fresh so the comparison and
+                    // analyst rebuild from the replacement only.
+                    removeVendor(active.id);
+                    void runVendor(v);
+                  }}
+                />
+              )}
+              {active.uploaded && (
                 <Button
                   variant="ghost"
                   size="sm"
