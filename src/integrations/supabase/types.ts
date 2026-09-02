@@ -47,6 +47,42 @@ export type Database = {
         }
         Relationships: []
       }
+      rfqs: {
+        Row: {
+          created_at: string
+          doc: Json
+          id: string
+          line_items: number
+          product_category: string
+          status: string
+          submission_deadline: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doc: Json
+          id: string
+          line_items?: number
+          product_category: string
+          status?: string
+          submission_deadline?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doc?: Json
+          id?: string
+          line_items?: number
+          product_category?: string
+          status?: string
+          submission_deadline?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
