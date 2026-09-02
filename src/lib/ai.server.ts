@@ -122,45 +122,48 @@ export function parseJsonLoose<T>(raw: string): T {
  * dominant failure mode when a long extraction hits the model's token ceiling.
  */
 function repairJson(input: string): string {
-  const scan = (text: string) => {
+  /** Closes every array/object still open; null when a string is left open. */
+  const close = (text: string): string | null => {
     const stack: string[] = [];
     let inStr = false;
     let esc = false;
-    // Index just after the last position that is structurally safe to cut.
-    let safe = 0;
-    for (let i = 0; i < text.length; i++) {
-      const ch = text[i]!;
+    for (const ch of text) {
       if (inStr) {
         if (esc) esc = false;
         else if (ch === "\\") esc = true;
-        else if (ch === '"') {
-          inStr = false;
-          safe = i + 1;
-        }
+        else if (ch === '"') inStr = false;
         continue;
       }
       if (ch === '"') inStr = true;
-      else if (ch === "{" || ch === "[") stack.push(ch === "{" ? "}" : "]");
-      else if (ch === "}" || ch === "]") {
-        stack.pop();
-        safe = i + 1;
-      } else if (ch === "," || /[0-9a-z]/i.test(ch)) safe = i + 1;
+      else if (ch === "{") stack.push("}");
+      else if (ch === "[") stack.push("]");
+      else if (ch === "}" || ch === "]") stack.pop();
     }
-    return { stack, safe };
+    if (inStr) return null;
+    let out = text;
+    while (stack.length) out += stack.pop();
+    return out;
   };
 
-  let out = input.slice(0, scan(input).safe).replace(/,\s*$/, "");
-  // A dangling key (with or without its colon) and no value must go too.
-  out = out.replace(/,?\s*"[^"]*"\s*:?\s*$/, (m, ...a) => {
-    const idx = a[a.length - 2] as number;
-    // Keep it when it is a plain array element rather than an object key.
-    return /[[,]\s*$/.test(out.slice(0, idx)) && !m.includes(":") ? m : "";
-  });
-  out = out.replace(/,\s*$/, "");
-
-  const { stack } = scan(out);
-  while (stack.length) out += stack.pop();
-  return out;
+  // Chop one trailing token at a time until the closed document parses.
+  let s = input;
+  const token = /\s*(?:"(?:[^"\\]|\\.)*"|[^"{}[\],:]+|[,:{["])\s*$/;
+  for (let i = 0; i < 5000 && s.length > 0; i++) {
+    const candidate = close(s);
+    if (candidate) {
+      try {
+        JSON.parse(candidate);
+        return candidate;
+      } catch {
+        /* keep chopping */
+      }
+    }
+    const next = s.replace(token, "");
+    if (next === s) break;
+    s = next;
+  }
+  throw new Error("Model returned malformed JSON that could not be repaired.");
 }
+
 
 
