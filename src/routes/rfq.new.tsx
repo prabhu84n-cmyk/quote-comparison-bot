@@ -94,7 +94,7 @@ function NewRfqPage() {
       "Reply to this email with your quote and the completed questionnaire attached. Any document format is accepted.",
   });
   const [status, setStatus] = useState<RfqStatus>("Draft");
-  const [lines, setLines] = useState<LineDraft[]>([emptyLine()]);
+  const [lines, setLines] = useState<LineDraft[]>([{ ...emptyLine(), sku: skuFor(0) }]);
   const [questions, setQuestions] = useState<QuestionnaireItem[]>([emptyQuestion(1)]);
   const [error, setError] = useState<string | null>(null);
 
