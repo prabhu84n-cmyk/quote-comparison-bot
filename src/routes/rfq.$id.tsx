@@ -278,7 +278,15 @@ function RfqDetailPage() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusTag status={statusOf(stored.id)} />
+          {editing ? (
+            <StatusSelect
+              value={statusOf(stored.id)}
+              onChange={(s) => setStatus(stored.id, s)}
+              className="h-8 w-[190px] bg-chassis text-[13px]"
+            />
+          ) : (
+            <StatusTag status={statusOf(stored.id)} />
+          )}
           {editing ? (
             <>
               <Button onClick={() => void save()} disabled={saving || !dirty}>
