@@ -20,6 +20,18 @@ import { addUpload, kindForFile, removeUpload, uploadToInbox, useUploads, type D
 import { rfq } from "@/data/rfq";
 import { useWorkspace } from "@/state/workspace";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Panel, Tag, Confidence } from "@/components/Primitives";
 import type { SourceKind } from "@/lib/types";
 
@@ -316,5 +328,129 @@ function InboxPage() {
       </div>
       )}
     </div>
+  );
+}
+
+function UploadDialog({ rfqId, onAdded }: { rfqId: string; onAdded: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [vendorName, setVendorName] = useState("");
+  const [docType, setDocType] = useState<DocType>("both");
+  const [file, setFile] = useState<File | null>(null);
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    setError(null);
+    if (!vendorName.trim()) return setError("Vendor name is required.");
+    if (!file) return setError("Pick a file to upload.");
+    setSaving(true);
+    try {
+      const buf = new Uint8Array(await file.arrayBuffer());
+      let bin = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < buf.length; i += chunk) bin += String.fromCharCode(...buf.subarray(i, i + chunk));
+      const entry = addUpload({
+        rfqId,
+        vendorName: vendorName.trim(),
+        docType,
+        fileLabel: file.name,
+        kind: kindForFile(file.name, file.type),
+        mime: file.type || "application/octet-stream",
+        base64: btoa(bin),
+        note: note.trim(),
+      });
+      onAdded(entry.id);
+      setOpen(false);
+      setVendorName("");
+      setFile(null);
+      setNote("");
+      setDocType("both");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="secondary" size="sm">
+          <Upload className="size-4" /> Upload response
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Upload a vendor response</DialogTitle>
+          <DialogDescription>
+            Stored against <span className="num">{rfqId}</span>. The same AI extraction runs on it as on
+            mailbox attachments.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="vendor-name">Vendor name</Label>
+            <Input
+              id="vendor-name"
+              value={vendorName}
+              onChange={(e) => setVendorName(e.target.value)}
+              placeholder="e.g. Kavery Packaging Pvt Ltd"
+              maxLength={120}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>What does this file contain?</Label>
+            <RadioGroup value={docType} onValueChange={(v) => setDocType(v as DocType)}>
+              {(
+                [
+                  ["quote", "Quotation only"],
+                  ["questionnaire", "Questionnaire response only"],
+                  ["both", "Both, in the same file"],
+                ] as const
+              ).map(([value, label]) => (
+                <div key={value} className="flex items-center gap-2">
+                  <RadioGroupItem value={value} id={`dt-${value}`} />
+                  <Label htmlFor={`dt-${value}`} className="font-normal">
+                    {label}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="vendor-file">File</Label>
+            <Input
+              id="vendor-file"
+              type="file"
+              accept=".xlsx,.xls,.docx,.pdf,.txt,.eml,.csv,image/*"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Excel, Word, PDF, image or plain text — whatever the vendor sent.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="vendor-note">Note (optional)</Label>
+            <Input
+              id="vendor-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Anything the extractor should know"
+              maxLength={200}
+            />
+          </div>
+          {error && <p className="text-[13px] text-risk">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={() => void submit()} disabled={saving}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Save response
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
