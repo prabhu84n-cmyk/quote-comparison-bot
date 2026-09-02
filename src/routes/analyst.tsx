@@ -63,11 +63,17 @@ function AnalystPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggested, setSuggested] = useState<string[]>([]);
+  const [log, setLog] = useState<AnalystLogRow[]>([]);
+  const [openLog, setOpenLog] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [turns, loading]);
+
+  useEffect(() => {
+    void fetchAnalystLog().then(setLog);
+  }, []);
 
   useEffect(() => {
     if (!extractions.length || suggested.length) return;
@@ -92,8 +98,18 @@ function AnalystPage() {
         },
       });
       setTurns((t) => [...t, { role: "assistant", content: res.answer, payload: res }]);
+      const row = await logAnalystTurn({
+        rfqId: rfq.id,
+        question,
+        answer: res.answer,
+        payload: res,
+      });
+      if (row) setLog((l) => [row, ...l]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
+      const row = await logAnalystTurn({ rfqId: rfq.id, question, error: message });
+      if (row) setLog((l) => [row, ...l]);
     } finally {
       setLoading(false);
     }
