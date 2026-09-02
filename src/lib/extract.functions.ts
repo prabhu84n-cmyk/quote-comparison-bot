@@ -8,6 +8,11 @@ const Input = z.object({
   vendorId: z.string(),
   base64: z.string(),
   mime: z.string(),
+  /** Provided for buyer-uploaded responses that are not in the seeded mailbox. */
+  vendorName: z.string().optional(),
+  kind: z.enum(["xlsx", "pdf", "docx", "image", "email"]).optional(),
+  hint: z.string().optional(),
+  docType: z.enum(["quote", "questionnaire", "both"]).optional(),
 });
 
 const LINE_CATALOGUE = () =>
@@ -96,14 +101,26 @@ Answer with JSON only.`;
 export const extractVendorQuote = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data }): Promise<VendorExtraction> => {
-    const vendor = vendorById(data.vendorId);
-    if (!vendor) throw new Error(`Unknown vendor ${data.vendorId}`);
+    const seeded = vendorById(data.vendorId);
+    const vendor = seeded ?? {
+      id: data.vendorId,
+      name: data.vendorName ?? data.vendorId,
+      kind: (data.kind ?? "email") as SourceKind,
+      hint: data.hint ?? "Buyer-uploaded vendor response.",
+      fileLabel: data.vendorName ?? data.vendorId,
+    };
+    const docNote =
+      data.docType === "questionnaire"
+        ? "This document is a questionnaire response only — expect no pricing lines. Return an empty lines array if there is no pricing."
+        : data.docType === "both"
+          ? "This document contains both pricing and questionnaire answers."
+          : "";
 
     const { parseSource } = await import("./parse.server");
     const { chatText, parseJsonLoose, EXTRACTION_MODEL } = await import("./ai.server");
 
     const parsed = await parseSource(vendor.kind as SourceKind, data.base64, data.mime);
-    const prompt = buildUserPrompt(vendor.name, vendor.hint, parsed.locationHint);
+    const prompt = buildUserPrompt(vendor.name, `${vendor.hint}${docNote ? ` ${docNote}` : ""}`, parsed.locationHint);
 
     const userContent = parsed.imageDataUrl
       ? [

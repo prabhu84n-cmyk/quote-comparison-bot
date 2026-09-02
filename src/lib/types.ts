@@ -70,6 +70,11 @@ export interface VendorInbox {
   fileLabel: string;
   kind: SourceKind;
   hint: string;
+  /** Present for buyer-uploaded responses: the file bytes, base64 encoded. */
+  base64?: string;
+  mime?: string;
+  docType?: "quote" | "questionnaire" | "both";
+  uploaded?: boolean;
 }
 
 /* ----------------------------------------------------------- AI extraction */

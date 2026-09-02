@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowRight, Award, Info, Loader2, Play, Sparkles } from "lucide-react";
 import { rfq } from "@/data/rfq";
-import { vendors } from "@/data/vendors";
+import { vendorMeta } from "@/data/vendor-registry";
 import { useWorkspace } from "@/state/workspace";
 import { Button } from "@/components/ui/button";
 import { Panel, Stat, Tag, Confidence, inr } from "@/components/Primitives";
@@ -42,7 +42,13 @@ function ComparePage() {
   const [detail, setDetail] = useState<NormalizedCell | null>(null);
   const [commonBasket, setCommonBasket] = useState(true);
 
-  const ids = useMemo(() => vendors.filter((v) => extractions.some((e) => e.vendorId === v.id)), [extractions]);
+  const ids = useMemo(
+    () =>
+      extractions
+        .map((e) => vendorMeta(e.vendorId))
+        .filter((v): v is NonNullable<typeof v> => Boolean(v)),
+    [extractions],
+  );
 
   const basketLines = useMemo(() => {
     if (!comparison) return [];
@@ -363,7 +369,7 @@ function ComparePage() {
                 <div>
                   <div className="rail-label">Vendor</div>
                   <div className="mt-1 text-[13px]">
-                    {vendors.find((v) => v.id === detail.vendorId)?.name}
+                    {vendorMeta(detail.vendorId)?.name}
                   </div>
                 </div>
 
@@ -434,7 +440,7 @@ function ComparePage() {
                     }}
                   >
                     <Award className="size-4" /> Award this line to{" "}
-                    {vendors.find((v) => v.id === detail.vendorId)?.shortName}
+                    {vendorMeta(detail.vendorId)?.shortName}
                   </Button>
                 )}
               </div>
