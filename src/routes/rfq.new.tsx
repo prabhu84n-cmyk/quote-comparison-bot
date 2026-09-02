@@ -95,6 +95,105 @@ function NewRfqPage() {
   const [questions, setQuestions] = useState<QuestionnaireItem[]>([emptyQuestion(1)]);
   const [error, setError] = useState<string | null>(null);
 
+  // ---- drafting copilot ----
+  const [instruction, setInstruction] = useState("");
+  const [thread, setThread] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [pending, setPending] = useState<DraftPatch | null>(null);
+  const [reply, setReply] = useState<DraftPatch | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const dictation = useRef<Dictation | null>(null);
+
+  const currentForm = () => ({
+    ...head,
+    lineItems: lines.filter((l) => l.description.trim() || l.sku.trim()),
+    questionnaire: questions.filter((q) => q.question.trim()),
+  });
+
+  async function askCopilot() {
+    const q = instruction.trim();
+    if (!q || aiLoading) return;
+    setAiLoading(true);
+    setAiError(null);
+    setInstruction("");
+    try {
+      const res = await draftRfqFromText({ data: { instruction: q, form: currentForm(), history: thread } });
+      setThread((t) => [...t, { role: "user", content: q }, { role: "assistant", content: res.reply }]);
+      setReply(res);
+      setPending(res);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function applyPatch() {
+    if (!pending) return;
+    const p = pending;
+    setPending(null);
+    if (Object.keys(p.header).length) setHead((h) => ({ ...h, ...p.header }) as typeof h);
+    if (p.lineItems.length) {
+      const mapped = p.lineItems.map((raw) => {
+        const base = emptyLine();
+        const l: LineDraft = { ...base };
+        for (const [k, v] of Object.entries(raw)) {
+          if (!(k in base) || v == null) continue;
+          const key = k as keyof LineDraft;
+          const cur = base[key];
+          (l as Record<string, unknown>)[key] =
+            typeof cur === "number" ? Number(v) || 0 : typeof cur === "boolean" ? Boolean(v) : String(v);
+        }
+        return l;
+      });
+      setLines((ls) => {
+        const kept = p.lineMode === "replace" ? [] : ls.filter((l) => l.description.trim() || l.sku.trim());
+        return [...kept, ...mapped];
+      });
+    }
+    if (p.questionnaire.length) {
+      setQuestions((qs) => {
+        const kept = p.questionMode === "replace" ? [] : qs.filter((q) => q.question.trim());
+        const merged = [...kept, ...p.questionnaire.map((q) => ({ ...q, id: "" }))];
+        return merged.map((q, i) => ({ ...q, id: `Q${i + 1}` }));
+      });
+    }
+    setError(null);
+  }
+
+  async function toggleMic() {
+    if (recording) {
+      setRecording(false);
+      setTranscribing(true);
+      try {
+        const blob = await dictation.current!.stop();
+        const text = await transcribe(blob);
+        if (text.trim()) setInstruction((v) => (v ? `${v} ${text.trim()}` : text.trim()));
+        else setAiError("Nothing was picked up — try recording again.");
+      } catch (e) {
+        setAiError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setTranscribing(false);
+      }
+      return;
+    }
+    setAiError(null);
+    try {
+      dictation.current = new Dictation();
+      await dictation.current.start();
+      setRecording(true);
+    } catch {
+      setAiError("Microphone access is needed to dictate. Allow it in your browser and try again.");
+    }
+  }
+
+  const pendingCount =
+    (pending ? Object.keys(pending.header).length : 0) +
+    (pending?.lineItems.length ?? 0) +
+    (pending?.questionnaire.length ?? 0);
+
   const set = (k: keyof typeof head, v: string) => setHead((h) => ({ ...h, [k]: v }));
   const setLine = (i: number, patch: Partial<LineDraft>) =>
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
