@@ -235,7 +235,7 @@ export function useWorkspace(rfqId?: string, doc?: Rfq) {
   const ctx = useContext(Ctx);
   // A stale HMR module copy can briefly see an empty context; degrade instead of
   // blanking the page.
-  const { byRfq, setSlice, runVendorFor } = ctx ?? FALLBACK_CTX;
+  const { byRfq, setSlice, runVendorFor, attachQuestionnaireFor } = ctx ?? FALLBACK_CTX;
 
   const id = rfqId ?? "";
   const slice = (rfqId ? byRfq[rfqId] : undefined) ?? EMPTY_SLICE;
@@ -248,6 +248,12 @@ export function useWorkspace(rfqId?: string, doc?: Rfq) {
 
   const extractions = rfqId ? slice.extractions : allExtractions;
   const states = slice.states;
+
+  const attachQuestionnaire = useCallback(
+    (vendorId: string, file: QuestionnaireAttachment) =>
+      attachQuestionnaireFor(id, vendorId, file, doc),
+    [attachQuestionnaireFor, id, doc],
+  );
 
   const runVendor = useCallback(
     (v: VendorInbox) => runVendorFor(id, v, doc),
@@ -318,5 +324,6 @@ export function useWorkspace(rfqId?: string, doc?: Rfq) {
     clearOverride,
     award,
     busy,
+    attachQuestionnaire,
   };
 }
