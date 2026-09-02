@@ -165,7 +165,64 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [setSlice],
   );
 
-  const value: WorkspaceValue = { byRfq, setSlice, runVendorFor };
+  /**
+   * A vendor that forgot the questionnaire can send it later: extract the late
+   * document on its own and merge its answers into the existing extraction so
+   * the comparison and qualification scores update in place.
+   */
+  const attachQuestionnaireFor = useCallback(
+    async (rfqId: string, vendorId: string, file: QuestionnaireAttachment, doc?: Rfq) => {
+      const t0 = performance.now();
+      const patchState = (st: VendorState) =>
+        setSlice(rfqId, (s) => ({ ...s, states: { ...s.states, [vendorId]: st } }));
+
+      patchState({ status: "extracting", startedAt: Date.now() });
+      try {
+        const result = await extractVendorQuote({
+          data: {
+            vendorId,
+            base64: file.base64,
+            mime: file.mime,
+            vendorName: file.vendorName,
+            kind: file.kind,
+            hint: `Questionnaire response sent separately by the vendor (${file.fileLabel}).`,
+            docType: "questionnaire",
+            ...(doc ? { rfqDoc: doc as unknown as Record<string, unknown> } : {}),
+          },
+        });
+        setSlice(rfqId, (s) => {
+          const existing = s.extractions.find((e) => e.vendorId === vendorId);
+          const incoming = result.questionnaire ?? [];
+          const merged: VendorExtraction = existing
+            ? {
+                ...existing,
+                questionnaire: [
+                  ...existing.questionnaire.filter((a) => !incoming.some((n) => n.id === a.id)),
+                  ...incoming,
+                ],
+                warnings: [
+                  ...(existing.warnings ?? []),
+                  `Questionnaire answers updated from a late submission: ${file.fileLabel}.`,
+                ],
+              }
+            : result;
+          return {
+            ...s,
+            extractions: [...s.extractions.filter((e) => e.vendorId !== vendorId), merged],
+            states: {
+              ...s.states,
+              [vendorId]: { status: "done", ms: Math.round(performance.now() - t0) },
+            },
+          };
+        });
+      } catch (err) {
+        patchState({ status: "error", error: err instanceof Error ? err.message : String(err) });
+      }
+    },
+    [setSlice],
+  );
+
+  const value: WorkspaceValue = { byRfq, setSlice, runVendorFor, attachQuestionnaireFor };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
