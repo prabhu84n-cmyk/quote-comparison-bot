@@ -13,9 +13,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Download, Loader2, Send, Sparkles, TriangleAlert } from "lucide-react";
+import { Download, History, Loader2, Send, Sparkles, TriangleAlert } from "lucide-react";
 import { useWorkspace } from "@/state/workspace";
 import { askAnalyst, suggestQuestions, type AnalystAnswer } from "@/lib/analyst.functions";
+import { fetchAnalystLog, logAnalystTurn, type AnalystLogRow } from "@/lib/analyst-log";
+import { rfq } from "@/data/rfq";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Panel, Tag, inr } from "@/components/Primitives";
