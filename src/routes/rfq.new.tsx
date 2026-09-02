@@ -153,7 +153,7 @@ function NewRfqPage() {
       });
       setLines((ls) => {
         const kept = p.lineMode === "replace" ? [] : ls.filter((l) => l.description.trim() || l.sku.trim());
-        return [...kept, ...mapped];
+        return [...kept, ...mapped].map((l, i) => (l.sku.trim() ? l : { ...l, sku: skuFor(i) }));
       });
     }
     if (p.questionnaire.length) {
@@ -229,6 +229,7 @@ function NewRfqPage() {
       estimatedTotalQuantity: kept.reduce((s, l) => s + Number(l.quantity || 0), 0),
       lineItems: kept.map((l, i) => ({
         ...l,
+        sku: l.sku.trim() || skuFor(i),
         lineNo: i + 1,
         category: l.category || head.productCategory,
         deliveryLocation: l.deliveryLocation || head.deliveryLocation,
@@ -440,7 +441,7 @@ function NewRfqPage() {
         title="Line items"
         hint={`${lines.length} row(s)`}
         actions={
-          <Button size="sm" variant="secondary" onClick={() => setLines((l) => [...l, emptyLine()])}>
+          <Button size="sm" variant="secondary" onClick={() => setLines((l) => [...l, { ...emptyLine(), sku: skuFor(l.length) }])}>
             <Plus className="size-3.5" /> Add line
           </Button>
         }
