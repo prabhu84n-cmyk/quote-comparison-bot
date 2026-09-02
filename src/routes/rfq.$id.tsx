@@ -102,7 +102,7 @@ function RfqDetailPage() {
             <Download className="size-4" /> Download RFQ (PDF)
           </Button>
           <Button asChild>
-            <Link to="/inbox">
+            <Link to="/inbox" search={{ rfq: rfq.id }}>
               Vendor responses <ArrowRight className="size-4" />
             </Link>
           </Button>
