@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { rfq as seedRfq } from "@/data/rfq";
 import type { Rfq } from "@/lib/types";
