@@ -14,7 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analyst_chat_log: {
+        Row: {
+          answer: string | null
+          created_at: string
+          error: string | null
+          id: string
+          payload: Json | null
+          question: string
+          rfq_id: string | null
+          session_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          payload?: Json | null
+          question: string
+          rfq_id?: string | null
+          session_id: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          payload?: Json | null
+          question?: string
+          rfq_id?: string | null
+          session_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
