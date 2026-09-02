@@ -6,6 +6,7 @@ import {
   Check,
   Download,
   Loader2,
+  Mail,
   Pencil,
   Plus,
   Save,
@@ -20,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Panel, Stat } from "@/components/Primitives";
 import { StatusTag } from "@/components/RfqStatus";
+import { SendRfqDialog } from "@/components/SendRfqDialog";
 import { useRfqStore } from "@/state/rfqs";
 import { downloadRfqPdf } from "@/lib/rfq-pdf";
 import { rfqCopilot, type CopilotReply, type LineOp, type QuestionOp, type RfqChange } from "@/lib/copilot.functions";
