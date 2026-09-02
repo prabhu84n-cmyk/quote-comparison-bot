@@ -1,5 +1,5 @@
 import { rfq } from "@/data/rfq";
-import { vendors } from "@/data/vendors";
+import { vendorMeta } from "@/data/vendor-registry";
 import type {
   Comparison,
   ExtractedLine,
@@ -68,7 +68,7 @@ export function buildComparison(
   const summaries: VendorSummary[] = [];
 
   for (const ex of extractions) {
-    const vendor = vendors.find((v) => v.id === ex.vendorId);
+    const vendor = vendorMeta(ex.vendorId);
     const docCurrency = ex.charges?.currency ?? "INR";
     const vendorCells: NormalizedCell[] = [];
     let currencyConverted = false;
