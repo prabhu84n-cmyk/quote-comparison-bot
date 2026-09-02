@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { extractVendorQuote } from "@/lib/extract.functions";
 import { buildComparison, type OverrideMap } from "@/lib/normalize";
 import { vendors } from "@/data/vendors";
-import type { Comparison, VendorExtraction, VendorInbox } from "@/lib/types";
+import { rfq as seedRfq } from "@/data/rfq";
+import type { Comparison, Rfq, VendorExtraction, VendorInbox } from "@/lib/types";
 
 export type VendorStatus = "idle" | "reading" | "extracting" | "done" | "error";
 
@@ -13,24 +14,28 @@ interface VendorState {
   ms?: number;
 }
 
-interface WorkspaceValue {
+/** Everything the workspace knows about ONE RFQ. */
+interface RfqSlice {
   states: Record<string, VendorState>;
   extractions: VendorExtraction[];
-  comparison: Comparison | null;
   overrides: OverrideMap;
   awards: Record<string, string>;
-  runVendor: (v: VendorInbox) => Promise<void>;
-  runAll: (list?: VendorInbox[]) => Promise<void>;
-  resetAll: () => void;
-  setOverride: (vendorId: string, lineNo: number, unitPriceLanded: number, note: string) => void;
-  clearOverride: (vendorId: string, lineNo: number) => void;
-  award: (lineNo: number, vendorId: string | null) => void;
-  busy: boolean;
+}
+
+const EMPTY_SLICE: RfqSlice = { states: {}, extractions: [], overrides: {}, awards: {} };
+
+type ByRfq = Record<string, RfqSlice>;
+
+interface WorkspaceValue {
+  byRfq: ByRfq;
+  setSlice: (rfqId: string, fn: (s: RfqSlice) => RfqSlice) => void;
+  runVendorFor: (rfqId: string, v: VendorInbox, doc?: Rfq) => Promise<void>;
 }
 
 const Ctx = createContext<WorkspaceValue | null>(null);
 
-const STORAGE = "aerchain.workspace.v1";
+const STORAGE = "aerchain.workspace.v2";
+const LEGACY_STORAGE = "aerchain.workspace.v1";
 
 const MIME: Record<string, string> = {
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -53,29 +58,31 @@ async function fileToBase64(url: string): Promise<string> {
 }
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
-  const [states, setStates] = useState<Record<string, VendorState>>({});
-  const [extractions, setExtractions] = useState<VendorExtraction[]>([]);
-  const [overrides, setOverrides] = useState<OverrideMap>({});
-  const [awards, setAwards] = useState<Record<string, string>>({});
+  const [byRfq, setByRfq] = useState<ByRfq>({});
   const hydrated = useRef(false);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE);
       if (raw) {
-        const p = JSON.parse(raw) as {
-          extractions?: VendorExtraction[];
-          overrides?: OverrideMap;
-          awards?: Record<string, string>;
-        };
-        if (p.extractions?.length) {
-          setExtractions(p.extractions);
-          setStates(
-            Object.fromEntries(p.extractions.map((e) => [e.vendorId, { status: "done" as const }])),
-          );
+        setByRfq(JSON.parse(raw) as ByRfq);
+      } else {
+        // Migrate the old single-RFQ cache onto the demo RFQ.
+        const legacy = localStorage.getItem(LEGACY_STORAGE);
+        if (legacy) {
+          const p = JSON.parse(legacy) as Partial<RfqSlice>;
+          setByRfq({
+            [seedRfq.id]: {
+              ...EMPTY_SLICE,
+              extractions: p.extractions ?? [],
+              overrides: p.overrides ?? {},
+              awards: p.awards ?? {},
+              states: Object.fromEntries(
+                (p.extractions ?? []).map((e) => [e.vendorId, { status: "done" as const }]),
+              ),
+            },
+          });
         }
-        if (p.overrides) setOverrides(p.overrides);
-        if (p.awards) setAwards(p.awards);
       }
     } catch {
       /* ignore corrupted cache */
@@ -86,96 +93,144 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated.current) return;
     try {
-      localStorage.setItem(STORAGE, JSON.stringify({ extractions, overrides, awards }));
+      localStorage.setItem(STORAGE, JSON.stringify(byRfq));
     } catch {
       /* quota — cache is a convenience only */
     }
-  }, [extractions, overrides, awards]);
+  }, [byRfq]);
 
-  const runVendor = useCallback(async (v: VendorInbox) => {
-    const t0 = performance.now();
-    setStates((s) => ({ ...s, [v.id]: { status: "reading", startedAt: Date.now() } }));
-    try {
-      const base64 = v.base64 ?? (await fileToBase64(v.file));
-      setStates((s) => ({ ...s, [v.id]: { ...s[v.id], status: "extracting" } }));
-      const result = await extractVendorQuote({
-        data: {
-          vendorId: v.id,
-          base64,
-          mime: v.mime ?? MIME[v.kind] ?? "application/octet-stream",
-          vendorName: v.name,
-          kind: v.kind,
-          hint: v.hint,
-          ...(v.docType ? { docType: v.docType } : {}),
-        },
-      });
-      setExtractions((prev) => [...prev.filter((e) => e.vendorId !== v.id), result]);
-      setStates((s) => ({
-        ...s,
-        [v.id]: { status: "done", ms: Math.round(performance.now() - t0) },
-      }));
-    } catch (err) {
-      setStates((s) => ({
-        ...s,
-        [v.id]: { status: "error", error: err instanceof Error ? err.message : String(err) },
-      }));
-    }
+  const setSlice = useCallback((rfqId: string, fn: (s: RfqSlice) => RfqSlice) => {
+    setByRfq((prev) => ({ ...prev, [rfqId]: fn(prev[rfqId] ?? EMPTY_SLICE) }));
   }, []);
 
-  const runAll = useCallback(async (list?: VendorInbox[]) => {
-    // Sequential: the gateway rate limit is shared across the workspace.
-    for (const v of list ?? vendors) {
-      await runVendor(v);
-    }
-  }, [runVendor]);
+  const runVendorFor = useCallback(
+    async (rfqId: string, v: VendorInbox, doc?: Rfq) => {
+      const t0 = performance.now();
+      const patchState = (st: VendorState | ((p: VendorState) => VendorState)) =>
+        setSlice(rfqId, (s) => ({
+          ...s,
+          states: {
+            ...s.states,
+            [v.id]: typeof st === "function" ? st(s.states[v.id] ?? { status: "idle" }) : st,
+          },
+        }));
 
-  const resetAll = useCallback(() => {
-    setExtractions([]);
-    setStates({});
-    setOverrides({});
-    setAwards({});
-    localStorage.removeItem(STORAGE);
-  }, []);
+      patchState({ status: "reading", startedAt: Date.now() });
+      try {
+        const base64 = v.base64 ?? (await fileToBase64(v.file));
+        patchState((p) => ({ ...p, status: "extracting" }));
+        const result = await extractVendorQuote({
+          data: {
+            vendorId: v.id,
+            base64,
+            mime: v.mime ?? MIME[v.kind] ?? "application/octet-stream",
+            vendorName: v.name,
+            kind: v.kind,
+            hint: v.hint,
+            ...(v.docType ? { docType: v.docType } : {}),
+            ...(doc ? { rfqDoc: doc as unknown as Record<string, unknown> } : {}),
+          },
+        });
+        setSlice(rfqId, (s) => ({
+          ...s,
+          extractions: [...s.extractions.filter((e) => e.vendorId !== v.id), result],
+          states: { ...s.states, [v.id]: { status: "done", ms: Math.round(performance.now() - t0) } },
+        }));
+      } catch (err) {
+        patchState({ status: "error", error: err instanceof Error ? err.message : String(err) });
+      }
+    },
+    [setSlice],
+  );
+
+  const value: WorkspaceValue = { byRfq, setSlice, runVendorFor };
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+}
+
+/**
+ * Scoped view of the workspace. Everything — extractions, comparison, awards —
+ * belongs to one RFQ, so the same vendor can quote several RFQs independently.
+ * Called without an id it only reports global progress (used by the app shell).
+ */
+export function useWorkspace(rfqId?: string, doc?: Rfq) {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("useWorkspace must be used inside WorkspaceProvider");
+  const { byRfq, setSlice, runVendorFor } = ctx;
+
+  const id = rfqId ?? "";
+  const slice = (rfqId ? byRfq[rfqId] : undefined) ?? EMPTY_SLICE;
+
+  const allExtractions = useMemo(
+    () => Object.values(byRfq).flatMap((s) => s.extractions),
+    [byRfq],
+  );
+  const allStates = useMemo(() => Object.values(byRfq).flatMap((s) => Object.values(s.states)), [byRfq]);
+
+  const extractions = rfqId ? slice.extractions : allExtractions;
+  const states = slice.states;
+
+  const runVendor = useCallback(
+    (v: VendorInbox) => runVendorFor(id, v, doc),
+    [runVendorFor, id, doc],
+  );
+
+  const runAll = useCallback(
+    async (list?: VendorInbox[]) => {
+      // Sequential: the gateway rate limit is shared across the workspace.
+      for (const v of list ?? (id === seedRfq.id ? vendors : [])) {
+        await runVendorFor(id, v, doc);
+      }
+    },
+    [runVendorFor, id, doc],
+  );
+
+  const resetAll = useCallback(() => setSlice(id, () => EMPTY_SLICE), [setSlice, id]);
 
   const setOverride = useCallback(
     (vendorId: string, lineNo: number, unitPriceLanded: number, note: string) =>
-      setOverrides((o) => ({ ...o, [`${vendorId}:${lineNo}`]: { unitPriceLanded, note } })),
-    [],
+      setSlice(id, (s) => ({
+        ...s,
+        overrides: { ...s.overrides, [`${vendorId}:${lineNo}`]: { unitPriceLanded, note } },
+      })),
+    [setSlice, id],
   );
+
   const clearOverride = useCallback(
     (vendorId: string, lineNo: number) =>
-      setOverrides((o) => {
-        const next = { ...o };
+      setSlice(id, (s) => {
+        const next = { ...s.overrides };
         delete next[`${vendorId}:${lineNo}`];
-        return next;
+        return { ...s, overrides: next };
       }),
-    [],
+    [setSlice, id],
   );
 
   const award = useCallback(
     (lineNo: number, vendorId: string | null) =>
-      setAwards((a) => {
-        const next = { ...a };
+      setSlice(id, (s) => {
+        const next = { ...s.awards };
         if (!vendorId) delete next[String(lineNo)];
         else next[String(lineNo)] = vendorId;
-        return next;
+        return { ...s, awards: next };
       }),
-    [],
+    [setSlice, id],
   );
 
-  const comparison = useMemo(
-    () => (extractions.length ? buildComparison(extractions, overrides) : null),
-    [extractions, overrides],
+  const comparison: Comparison | null = useMemo(
+    () => (rfqId && slice.extractions.length ? buildComparison(slice.extractions, slice.overrides, doc) : null),
+    [rfqId, slice.extractions, slice.overrides, doc],
   );
 
-  const busy = Object.values(states).some((s) => s.status === "reading" || s.status === "extracting");
+  const busy = (rfqId ? Object.values(states) : allStates).some(
+    (s) => s.status === "reading" || s.status === "extracting",
+  );
 
-  const value: WorkspaceValue = {
+  return {
     states,
     extractions,
     comparison,
-    overrides,
-    awards,
+    overrides: slice.overrides,
+    awards: slice.awards,
     runVendor,
     runAll,
     resetAll,
@@ -184,12 +239,4 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     award,
     busy,
   };
-
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
-}
-
-export function useWorkspace() {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useWorkspace must be used inside WorkspaceProvider");
-  return ctx;
 }
