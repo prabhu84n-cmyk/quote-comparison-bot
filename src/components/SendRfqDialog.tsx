@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { buildRfqPptxBlob, rfqPptxFileName } from "@/lib/rfq-ppt";
+import { buildRfqPdfBlob, rfqPdfFileName } from "@/lib/rfq-pdf";
 import type { Rfq } from "@/lib/types";
 
 function defaultBody(rfq: Rfq): string {
@@ -51,8 +51,8 @@ export function SendRfqDialog({ rfq, open, onClose }: { rfq: Rfq; open: boolean;
     let cancelled = false;
     void (async () => {
       try {
-        const blob = await buildRfqPptxBlob(rfq);
-        if (!cancelled) setDeck({ blob, name: rfqPptxFileName(rfq) });
+        const blob = buildRfqPdfBlob(rfq);
+        if (!cancelled) setDeck({ blob, name: rfqPdfFileName(rfq) });
       } catch (e) {
         if (!cancelled) setDeckError(e instanceof Error ? e.message : String(e));
       }
@@ -138,7 +138,7 @@ export function SendRfqDialog({ rfq, open, onClose }: { rfq: Rfq; open: boolean;
               ))}
             </ul>
             <p className="text-xs text-muted-foreground">
-              The RFQ deck ({rfqPptxFileName(rfq)}) is attached; if your mail client opened, add
+              The RFQ pack ({rfqPdfFileName(rfq)}) is attached; if your mail client opened, add
               the saved file from your downloads before sending.
             </p>
             <div className="flex justify-end">
@@ -203,18 +203,18 @@ export function SendRfqDialog({ rfq, open, onClose }: { rfq: Rfq; open: boolean;
                     <FileText className="size-4 text-muted-foreground" />
                     <span className="num text-[13px] text-foreground">{deck.name}</span>
                     <span className="text-xs text-muted-foreground">
-                      {(deck.blob.size / 1024).toFixed(0)} KB · RFQ pack (PPTX)
+                      {(deck.blob.size / 1024).toFixed(0)} KB · RFQ pack (PDF)
                     </span>
                     <Button type="button" size="sm" variant="secondary" className="ml-auto" onClick={saveDeck}>
                       <Download className="size-3.5" /> Save
                     </Button>
                   </>
                 ) : deckError ? (
-                  <span className="text-[13px] text-risk">RFQ deck could not be generated: {deckError}</span>
+                  <span className="text-[13px] text-risk">RFQ PDF could not be generated: {deckError}</span>
                 ) : (
                   <>
                     <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                    <span className="text-[13px] text-muted-foreground">Extracting RFQ to PPTX…</span>
+                    <span className="text-[13px] text-muted-foreground">Extracting RFQ to PDF…</span>
                   </>
                 )}
               </div>
@@ -224,7 +224,7 @@ export function SendRfqDialog({ rfq, open, onClose }: { rfq: Rfq; open: boolean;
 
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                The RFQ deck is attached automatically and saved to your downloads for the
+                The RFQ PDF is attached automatically and saved to your downloads for the
                 mail client.
               </p>
               <div className="flex gap-2">
