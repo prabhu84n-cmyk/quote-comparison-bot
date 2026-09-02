@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AnalystRouteImport } from './routes/analyst'
 import { Route as CompareRouteImport } from './routes/compare'
 import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as RfqIdRouteImport } from './routes/rfq.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const InboxRoute = InboxRouteImport.update({
   path: '/inbox',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RfqIdRoute = RfqIdRouteImport.update({
+  id: '/rfq/$id',
+  path: '/rfq/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/analyst': typeof AnalystRoute
   '/compare': typeof CompareRoute
   '/inbox': typeof InboxRoute
+  '/rfq/$id': typeof RfqIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/analyst': typeof AnalystRoute
   '/compare': typeof CompareRoute
   '/inbox': typeof InboxRoute
+  '/rfq/$id': typeof RfqIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/analyst': typeof AnalystRoute
   '/compare': typeof CompareRoute
   '/inbox': typeof InboxRoute
+  '/rfq/$id': typeof RfqIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/analyst' | '/compare' | '/inbox'
+  fullPaths: '/' | '/analyst' | '/compare' | '/inbox' | '/rfq/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/analyst' | '/compare' | '/inbox'
-  id: '__root__' | '/' | '/analyst' | '/compare' | '/inbox'
+  to: '/' | '/analyst' | '/compare' | '/inbox' | '/rfq/$id'
+  id: '__root__' | '/' | '/analyst' | '/compare' | '/inbox' | '/rfq/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   AnalystRoute: typeof AnalystRoute
   CompareRoute: typeof CompareRoute
   InboxRoute: typeof InboxRoute
+  RfqIdRoute: typeof RfqIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InboxRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rfq/$id': {
+      id: '/rfq/$id'
+      path: '/rfq/$id'
+      fullPath: '/rfq/$id'
+      preLoaderRoute: typeof RfqIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalystRoute: AnalystRoute,
   CompareRoute: CompareRoute,
   InboxRoute: InboxRoute,
+  RfqIdRoute: RfqIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
