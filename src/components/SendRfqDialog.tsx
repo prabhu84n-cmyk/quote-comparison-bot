@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Loader2, Mail, Plus, Send, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, FileText, Loader2, Mail, Plus, Send, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { buildRfqPptxBlob, rfqPptxFileName } from "@/lib/rfq-ppt";
 import type { Rfq } from "@/lib/types";
 
 function defaultBody(rfq: Rfq): string {
@@ -40,6 +41,36 @@ export function SendRfqDialog({ rfq, open, onClose }: { rfq: Rfq; open: boolean;
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [sentTo, setSentTo] = useState<string[] | null>(null);
+  const [deck, setDeck] = useState<{ blob: Blob; name: string } | null>(null);
+  const [deckError, setDeckError] = useState<string | null>(null);
+
+  // Build the vendor-facing RFQ deck as soon as the dialog opens so it is
+  // attached to the message rather than left to the user to remember.
+  useEffect(() => {
+    if (!open || deck) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const blob = await buildRfqPptxBlob(rfq);
+        if (!cancelled) setDeck({ blob, name: rfqPptxFileName(rfq) });
+      } catch (e) {
+        if (!cancelled) setDeckError(e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, rfq, deck]);
+
+  const saveDeck = () => {
+    if (!deck) return;
+    const url = URL.createObjectURL(deck.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = deck.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  };
 
   const addRecipient = () => {
     const email = draft.trim();
@@ -71,6 +102,7 @@ export function SendRfqDialog({ rfq, open, onClose }: { rfq: Rfq; open: boolean;
       });
       if (!res.configured) {
         // Email domain not configured yet — hand off to the user's mail app.
+        saveDeck();
         const mailto = `mailto:${recipients[0]}?bcc=${encodeURIComponent(recipients.slice(1).join(","))}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         window.location.href = mailto;
         setSentTo(recipients);
@@ -106,7 +138,8 @@ export function SendRfqDialog({ rfq, open, onClose }: { rfq: Rfq; open: boolean;
               ))}
             </ul>
             <p className="text-xs text-muted-foreground">
-              Attach the downloaded RFQ PDF in your email client before sending.
+              The RFQ deck ({rfqPptxFileName(rfq)}) is attached; if your mail client opened, add
+              the saved file from your downloads before sending.
             </p>
             <div className="flex justify-end">
               <Button variant="secondary" onClick={onClose}>
@@ -162,11 +195,37 @@ export function SendRfqDialog({ rfq, open, onClose }: { rfq: Rfq; open: boolean;
               <Textarea value={body} onChange={(e) => setBody(e.target.value)} rows={14} className="text-[13px] leading-relaxed" />
             </div>
 
+            <div>
+              <div className="rail-label mb-1.5">Attachment</div>
+              <div className="flex items-center gap-2 rounded-sm border border-border bg-card px-3 py-2">
+                {deck ? (
+                  <>
+                    <FileText className="size-4 text-muted-foreground" />
+                    <span className="num text-[13px] text-foreground">{deck.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {(deck.blob.size / 1024).toFixed(0)} KB · RFQ pack (PPTX)
+                    </span>
+                    <Button type="button" size="sm" variant="secondary" className="ml-auto" onClick={saveDeck}>
+                      <Download className="size-3.5" /> Save
+                    </Button>
+                  </>
+                ) : deckError ? (
+                  <span className="text-[13px] text-risk">RFQ deck could not be generated: {deckError}</span>
+                ) : (
+                  <>
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    <span className="text-[13px] text-muted-foreground">Extracting RFQ to PPTX…</span>
+                  </>
+                )}
+              </div>
+            </div>
+
             {error && <p className="text-[13px] text-risk">{error}</p>}
 
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground">
-                Remember to attach the RFQ PDF — use “Download RFQ (PDF)” on this page.
+                The RFQ deck is attached automatically and saved to your downloads for the
+                mail client.
               </p>
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={onClose}>
