@@ -40,7 +40,7 @@ function buildUserPrompt(vendorName: string, hint: string, locationHint: string)
   return `RFQ ${rfq.id} — ${rfq.title}
 Buyer currency: ${rfq.currency}. Delivery: ${rfq.deliveryLocation}.
 
-RFQ LINE ITEMS (lineNo|sku|description|specification|quantity|board weight):
+RFQ LINE ITEMS (lineNo|item number|description|specification|quantity|board weight). Vendors are asked to quote the item number for identification:
 ${LINE_CATALOGUE()}
 
 BUYER QUESTIONNAIRE:

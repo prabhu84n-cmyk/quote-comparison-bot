@@ -491,7 +491,7 @@ function RfqDetailPage() {
           <table className="w-full text-[13px]">
             <thead className="sticky top-0 z-10 bg-chassis">
               <tr className="etched">
-                {["#", "SKU", "Description", "Specification", "Qty", "UOM", "kg/unit", "Required by", "Substitute", ""].map(
+                {["#", "Item number", "Description", "Specification", "Qty", "UOM", "kg/unit", "Required by", "Substitute", ""].map(
                   (h, i) => (
                     <th key={i} className="rail-label px-3 py-2 text-left font-medium">
                       {h}

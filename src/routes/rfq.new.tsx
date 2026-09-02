@@ -450,7 +450,7 @@ function NewRfqPage() {
           <table className="w-full text-[13px]">
             <thead className="bg-chassis">
               <tr className="etched">
-                {["#", "SKU", "Description", "Specification", "Qty", "UOM", "kg/unit", "Required by", ""].map((h) => (
+                {["#", "Item number", "Description", "Specification", "Qty", "UOM", "kg/unit", "Required by", ""].map((h) => (
                   <th key={h} className="rail-label px-2 py-2 text-left font-medium">
                     {h}
                   </th>
