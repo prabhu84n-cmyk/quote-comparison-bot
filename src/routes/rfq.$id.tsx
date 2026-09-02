@@ -6,6 +6,7 @@ import {
   Check,
   Download,
   Loader2,
+  Mail,
   Pencil,
   Plus,
   Save,
@@ -20,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Panel, Stat } from "@/components/Primitives";
 import { StatusTag } from "@/components/RfqStatus";
+import { SendRfqDialog } from "@/components/SendRfqDialog";
 import { useRfqStore } from "@/state/rfqs";
 import { downloadRfqPdf } from "@/lib/rfq-pdf";
 import { rfqCopilot, type CopilotReply, type LineOp, type QuestionOp, type RfqChange } from "@/lib/copilot.functions";
@@ -144,6 +146,7 @@ function RfqDetailPage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [sendOpen, setSendOpen] = useState(false);
 
   const [instruction, setInstruction] = useState("");
   const [thread, setThread] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
@@ -298,6 +301,9 @@ function RfqDetailPage() {
           )}
           <Button variant="secondary" onClick={() => downloadRfqPdf(live)}>
             <Download className="size-4" /> Download RFQ (PDF)
+          </Button>
+          <Button variant="secondary" onClick={() => setSendOpen(true)}>
+            <Mail className="size-4" /> Send to vendors
           </Button>
           <Button asChild>
             <Link to="/inbox" search={{ rfq: stored.id }}>
@@ -712,6 +718,8 @@ function RfqDetailPage() {
           })}
         </ul>
       </Panel>
+
+      <SendRfqDialog rfq={live} open={sendOpen} onClose={() => setSendOpen(false)} />
     </div>
   );
 }
