@@ -119,6 +119,7 @@ function InboxPage() {
                           month: "short",
                           hour: "2-digit",
                           minute: "2-digit",
+                          timeZone: "Asia/Kolkata",
                         })}
                       </span>
                     </div>
@@ -169,13 +170,12 @@ function InboxPage() {
               </p>
               <a
                 href={active.file}
-                target="_blank"
-                rel="noreferrer"
+                download={active.fileLabel}
                 className="flex items-center gap-3 rounded-sm border border-border bg-background/60 px-3 py-2.5 transition-colors hover:border-signal/50"
               >
                 <ActiveIcon className="size-4 text-signal" />
                 <span className="num text-[13px]">{active.fileLabel}</span>
-                <span className="ml-auto rail-label">open attachment</span>
+                <span className="ml-auto rail-label">download attachment</span>
               </a>
               <p className="text-xs text-muted-foreground">
                 <span className="rail-label">Known quirk · </span>
