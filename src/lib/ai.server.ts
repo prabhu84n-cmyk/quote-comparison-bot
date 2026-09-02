@@ -122,36 +122,39 @@ export function parseJsonLoose<T>(raw: string): T {
  * dominant failure mode when a long extraction hits the model's token ceiling.
  */
 function repairJson(input: string): string {
-  const stack: string[] = [];
-  let inStr = false;
-  let esc = false;
-  // Index just after the last position where the document was structurally safe
-  // to cut (end of a value, or a comma boundary).
-  let safe = 0;
-
-  for (let i = 0; i < input.length; i++) {
-    const ch = input[i]!;
-    if (inStr) {
-      if (esc) esc = false;
-      else if (ch === "\\") esc = true;
-      else if (ch === '"') {
-        inStr = false;
-        safe = i + 1;
+  const scan = (text: string) => {
+    const stack: string[] = [];
+    let inStr = false;
+    let esc = false;
+    // Index just after the last position that is structurally safe to cut.
+    let safe = 0;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]!;
+      if (inStr) {
+        if (esc) esc = false;
+        else if (ch === "\\") esc = true;
+        else if (ch === '"') {
+          inStr = false;
+          safe = i + 1;
+        }
+        continue;
       }
-      continue;
+      if (ch === '"') inStr = true;
+      else if (ch === "{" || ch === "[") stack.push(ch === "{" ? "}" : "]");
+      else if (ch === "}" || ch === "]") {
+        stack.pop();
+        safe = i + 1;
+      } else if (ch === "," || /[0-9a-z]/i.test(ch)) safe = i + 1;
     }
-    if (ch === '"') inStr = true;
-    else if (ch === "{" || ch === "[") stack.push(ch === "{" ? "}" : "]");
-    else if (ch === "}" || ch === "]") {
-      stack.pop();
-      safe = i + 1;
-    } else if (ch === "," || /[0-9truefalsn]/.test(ch)) safe = i + 1;
-  }
+    return { stack, safe };
+  };
 
-  let out = input.slice(0, safe).replace(/,\s*$/, "");
+  let out = input.slice(0, scan(input).safe).replace(/,\s*$/, "");
   // A dangling `"key":` with no value must go too.
-  out = out.replace(/,?\s*"[^"]*"\s*:\s*$/, "");
+  out = out.replace(/,?\s*"[^"]*"\s*:\s*$/, "").replace(/,\s*$/, "");
+  const { stack } = scan(out);
   while (stack.length) out += stack.pop();
   return out;
 }
+
 
