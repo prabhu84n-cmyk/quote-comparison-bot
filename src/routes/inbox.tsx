@@ -52,17 +52,17 @@ const ICONS: Record<SourceKind, typeof Mail> = {
 };
 
 function InboxPage() {
+  const { rfq: rfqId = rfq.id } = Route.useSearch();
   const { states, extractions, runVendor, runAll, resetAll, busy } = useWorkspace();
+  const rfqVendors = rfqId === rfq.id ? vendors : [];
   const [open, setOpen] = useState<string>(vendors[0]!.id);
-  const active = vendors.find((v) => v.id === open)!;
-  const activeExtraction = extractions.find((e) => e.vendorId === open);
-  const ActiveIcon = ICONS[active.kind];
+  const active = rfqVendors.find((v) => v.id === open) ?? rfqVendors[0];
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="rail-label">Step 02 · Ingestion</div>
+          <div className="rail-label">Step 02 · Ingestion · {rfqId}</div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Vendor inbox</h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
             Mailbox and storage are mocked. The attachments are real files, and the AI reads them as they
