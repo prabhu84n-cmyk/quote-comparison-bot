@@ -110,6 +110,8 @@ export function uploadToInbox(u: UploadedResponse): VendorInbox {
   };
 }
 
+const EMPTY: UploadedResponse[] = [];
+
 function snapshot() {
   load();
   return items;
@@ -122,7 +124,7 @@ export function useUploads(rfqId: string): UploadedResponse[] {
       return () => listeners.delete(cb);
     },
     snapshot,
-    () => [] as UploadedResponse[],
+    () => EMPTY,
   );
   return all.filter((i) => i.rfqId === rfqId);
 }
