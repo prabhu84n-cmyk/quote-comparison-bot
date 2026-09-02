@@ -26,10 +26,24 @@ const EMPTY_SLICE: RfqSlice = { states: {}, extractions: [], overrides: {}, awar
 
 type ByRfq = Record<string, RfqSlice>;
 
+export interface QuestionnaireAttachment {
+  base64: string;
+  mime: string;
+  kind: VendorInbox["kind"];
+  fileLabel: string;
+  vendorName: string;
+}
+
 interface WorkspaceValue {
   byRfq: ByRfq;
   setSlice: (rfqId: string, fn: (s: RfqSlice) => RfqSlice) => void;
   runVendorFor: (rfqId: string, v: VendorInbox, doc?: Rfq) => Promise<void>;
+  attachQuestionnaireFor: (
+    rfqId: string,
+    vendorId: string,
+    file: QuestionnaireAttachment,
+    doc?: Rfq,
+  ) => Promise<void>;
 }
 
 const Ctx = createContext<WorkspaceValue | null>(null);
@@ -38,7 +52,9 @@ const FALLBACK_CTX: WorkspaceValue = {
   byRfq: {},
   setSlice: () => {},
   runVendorFor: async () => {},
+  attachQuestionnaireFor: async () => {},
 };
+
 
 const STORAGE = "aerchain.workspace.v2";
 const LEGACY_STORAGE = "aerchain.workspace.v1";
@@ -149,7 +165,64 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [setSlice],
   );
 
-  const value: WorkspaceValue = { byRfq, setSlice, runVendorFor };
+  /**
+   * A vendor that forgot the questionnaire can send it later: extract the late
+   * document on its own and merge its answers into the existing extraction so
+   * the comparison and qualification scores update in place.
+   */
+  const attachQuestionnaireFor = useCallback(
+    async (rfqId: string, vendorId: string, file: QuestionnaireAttachment, doc?: Rfq) => {
+      const t0 = performance.now();
+      const patchState = (st: VendorState) =>
+        setSlice(rfqId, (s) => ({ ...s, states: { ...s.states, [vendorId]: st } }));
+
+      patchState({ status: "extracting", startedAt: Date.now() });
+      try {
+        const result = await extractVendorQuote({
+          data: {
+            vendorId,
+            base64: file.base64,
+            mime: file.mime,
+            vendorName: file.vendorName,
+            kind: file.kind,
+            hint: `Questionnaire response sent separately by the vendor (${file.fileLabel}).`,
+            docType: "questionnaire",
+            ...(doc ? { rfqDoc: doc as unknown as Record<string, unknown> } : {}),
+          },
+        });
+        setSlice(rfqId, (s) => {
+          const existing = s.extractions.find((e) => e.vendorId === vendorId);
+          const incoming = result.questionnaire ?? [];
+          const merged: VendorExtraction = existing
+            ? {
+                ...existing,
+                questionnaire: [
+                  ...existing.questionnaire.filter((a) => !incoming.some((n) => n.id === a.id)),
+                  ...incoming,
+                ],
+                warnings: [
+                  ...(existing.warnings ?? []),
+                  `Questionnaire answers updated from a late submission: ${file.fileLabel}.`,
+                ],
+              }
+            : result;
+          return {
+            ...s,
+            extractions: [...s.extractions.filter((e) => e.vendorId !== vendorId), merged],
+            states: {
+              ...s.states,
+              [vendorId]: { status: "done", ms: Math.round(performance.now() - t0) },
+            },
+          };
+        });
+      } catch (err) {
+        patchState({ status: "error", error: err instanceof Error ? err.message : String(err) });
+      }
+    },
+    [setSlice],
+  );
+
+  const value: WorkspaceValue = { byRfq, setSlice, runVendorFor, attachQuestionnaireFor };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -162,7 +235,7 @@ export function useWorkspace(rfqId?: string, doc?: Rfq) {
   const ctx = useContext(Ctx);
   // A stale HMR module copy can briefly see an empty context; degrade instead of
   // blanking the page.
-  const { byRfq, setSlice, runVendorFor } = ctx ?? FALLBACK_CTX;
+  const { byRfq, setSlice, runVendorFor, attachQuestionnaireFor } = ctx ?? FALLBACK_CTX;
 
   const id = rfqId ?? "";
   const slice = (rfqId ? byRfq[rfqId] : undefined) ?? EMPTY_SLICE;
@@ -175,6 +248,12 @@ export function useWorkspace(rfqId?: string, doc?: Rfq) {
 
   const extractions = rfqId ? slice.extractions : allExtractions;
   const states = slice.states;
+
+  const attachQuestionnaire = useCallback(
+    (vendorId: string, file: QuestionnaireAttachment) =>
+      attachQuestionnaireFor(id, vendorId, file, doc),
+    [attachQuestionnaireFor, id, doc],
+  );
 
   const runVendor = useCallback(
     (v: VendorInbox) => runVendorFor(id, v, doc),
@@ -245,5 +324,6 @@ export function useWorkspace(rfqId?: string, doc?: Rfq) {
     clearOverride,
     award,
     busy,
+    attachQuestionnaire,
   };
 }
