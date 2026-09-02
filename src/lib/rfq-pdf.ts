@@ -72,13 +72,19 @@ export function downloadRfqPdf(rfq: Rfq) {
   doc.addPage();
   doc.setFont("helvetica", "bold").setFontSize(11).setTextColor(20);
   doc.text(`Line items (${rfq.lineItems.length})`, M, M);
+  doc.setFont("helvetica", "normal").setFontSize(8.5).setTextColor(60);
+  doc.text(
+    "Quote the item number shown against each line on your quotation for identification.",
+    M,
+    M + 13,
+  );
 
   autoTable(doc, {
-    startY: M + 12,
+    startY: M + 24,
     theme: "grid",
     styles: { fontSize: 7, cellPadding: 3, textColor: 40, lineColor: 215, overflow: "linebreak" },
     headStyles: { fillColor: [235, 237, 240], textColor: 30, fontStyle: "bold" },
-    head: [["#", "SKU", "Description", "Specification", "Qty", "UOM", "kg/unit", "Required by", "Substitute", "Unit price"]],
+    head: [["#", "Item number", "Description", "Specification", "Qty", "UOM", "kg/unit", "Required by", "Substitute", "Unit price"]],
     body: rfq.lineItems.map((l) => [
       String(l.lineNo),
       l.sku,
