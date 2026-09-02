@@ -158,7 +158,7 @@ function AnalystPage() {
               </div>
             ) : (
               <div key={i} className="panel p-4">
-                <div className="prose prose-invert max-w-none text-[13px] prose-p:my-2 prose-li:my-0.5 prose-strong:text-foreground prose-headings:text-[13px]">
+                <div className="prose prose-invert max-w-none text-[13px] prose-p:my-2 prose-li:my-0.5 prose-strong:text-foreground prose-headings:mb-1 prose-headings:mt-4 prose-headings:font-semibold prose-headings:tracking-tight prose-h1:text-base prose-h2:text-[15px] prose-h3:text-sm prose-headings:text-foreground first:prose-headings:mt-0">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{t.content}</ReactMarkdown>
                 </div>
 
