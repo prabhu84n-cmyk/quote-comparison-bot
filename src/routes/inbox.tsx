@@ -192,19 +192,29 @@ function InboxPage() {
             title={active.name}
             hint={active.fileLabel}
             actions={
-              <Button
-                size="sm"
-                variant={states[active.id]?.status === "done" ? "secondary" : "default"}
-                onClick={() => void runVendor(active)}
-                disabled={busy}
-              >
-                {states[active.id]?.status === "reading" || states[active.id]?.status === "extracting" ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Play className="size-4" />
-                )}
-                {states[active.id]?.status === "done" ? "Re-extract" : "Extract"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <QuestionnaireUpload
+                  vendors={rfqVendors.map((v) => ({ id: v.id, name: v.name }))}
+                  defaultVendorId={active.id}
+                  busy={busy}
+                  variant="ghost"
+                  label="Attach questionnaire"
+                  onAttach={attachQuestionnaire}
+                />
+                <Button
+                  size="sm"
+                  variant={states[active.id]?.status === "done" ? "secondary" : "default"}
+                  onClick={() => void runVendor(active)}
+                  disabled={busy}
+                >
+                  {states[active.id]?.status === "reading" || states[active.id]?.status === "extracting" ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Play className="size-4" />
+                  )}
+                  {states[active.id]?.status === "done" ? "Re-extract" : "Extract"}
+                </Button>
+              </div>
             }
           >
             <div className="space-y-4 p-4">
