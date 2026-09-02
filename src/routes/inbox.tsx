@@ -12,8 +12,11 @@ import {
   RotateCcw,
   Check,
   AlertCircle,
+  Upload,
+  Trash2,
 } from "lucide-react";
 import { vendors } from "@/data/vendors";
+import { addUpload, kindForFile, removeUpload, uploadToInbox, useUploads, type DocType } from "@/state/uploads";
 import { rfq } from "@/data/rfq";
 import { useWorkspace } from "@/state/workspace";
 import { Button } from "@/components/ui/button";
@@ -54,7 +57,11 @@ const ICONS: Record<SourceKind, typeof Mail> = {
 function InboxPage() {
   const { rfq: rfqId = rfq.id } = Route.useSearch();
   const { states, extractions, runVendor, runAll, resetAll, busy } = useWorkspace();
-  const rfqVendors = rfqId === rfq.id ? vendors : [];
+  const uploads = useUploads(rfqId);
+  const rfqVendors = [
+    ...(rfqId === rfq.id ? vendors : []),
+    ...uploads.map(uploadToInbox),
+  ];
   const [open, setOpen] = useState<string>(vendors[0]!.id);
   // Non-null: whenever the detail panel renders, rfqVendors is non-empty.
   const active = (rfqVendors.find((v) => v.id === open) ?? rfqVendors[0])!;
@@ -78,12 +85,13 @@ function InboxPage() {
               Back to RFQ
             </Link>
           </Button>
+          <UploadDialog rfqId={rfqId} onAdded={(id) => setOpen(id)} />
           {rfqVendors.length > 0 && (
             <>
               <Button variant="ghost" size="sm" onClick={resetAll} disabled={busy}>
                 <RotateCcw className="size-4" /> Reset
               </Button>
-              <Button onClick={() => void runAll()} disabled={busy}>
+              <Button onClick={() => void runAll(rfqVendors)} disabled={busy}>
                 {busy ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
                 Extract all quotes
               </Button>
@@ -199,7 +207,7 @@ function InboxPage() {
                 {active.body}
               </p>
               <a
-                href={active.file}
+                href={active.base64 ? `data:${active.mime};base64,${active.base64}` : active.file}
                 download={active.fileLabel}
                 className="flex items-center gap-3 rounded-sm border border-border bg-background/60 px-3 py-2.5 transition-colors hover:border-signal/50"
               >
@@ -211,10 +219,22 @@ function InboxPage() {
                 <span className="rail-label">Known quirk · </span>
                 {active.hint}
               </p>
+              {active.uploaded && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    removeUpload(active.id);
+                    setOpen(rfqVendors.find((v) => v.id !== active.id)?.id ?? "");
+                  }}
+                >
+                  <Trash2 className="size-4" /> Remove upload
+                </Button>
+              )}
 
               {active.kind === "image" && (
                 <img
-                  src={active.file}
+                  src={active.base64 ? `data:${active.mime};base64,${active.base64}` : active.file}
                   alt={`Photograph of the printed rate card sent by ${active.name}`}
                   className="w-full rounded-sm border border-border"
                   loading="lazy"
