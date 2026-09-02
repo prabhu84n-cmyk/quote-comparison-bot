@@ -72,6 +72,74 @@ function encodeWav(chunks: Float32Array[], sampleRate: number): Blob {
   return new Blob([buffer], { type: "audio/wav" });
 }
 
+type SpeechRecognitionResultLike = {
+  isFinal: boolean;
+  0: { transcript: string };
+};
+type SpeechRecognitionEventLike = {
+  resultIndex: number;
+  results: ArrayLike<SpeechRecognitionResultLike>;
+};
+type SpeechRecognitionLike = {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  onresult: ((e: SpeechRecognitionEventLike) => void) | null;
+  onerror: (() => void) | null;
+  start(): void;
+  stop(): void;
+};
+
+function speechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+  const w = window as unknown as Record<string, unknown>;
+  return (w["SpeechRecognition"] ?? w["webkitSpeechRecognition"] ?? null) as
+    | (new () => SpeechRecognitionLike)
+    | null;
+}
+
+/** Live speech-to-text using the browser's SpeechRecognition API (interim results). */
+export class LiveTranscriber {
+  private rec: SpeechRecognitionLike | null = null;
+  private finalText = "";
+
+  get supported() {
+    return speechRecognitionCtor() != null;
+  }
+
+  start(onUpdate: (live: string) => void) {
+    const Ctor = speechRecognitionCtor();
+    if (!Ctor) return;
+    this.finalText = "";
+    const rec = new Ctor();
+    this.rec = rec;
+    rec.lang = "en-US";
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        if (!r) continue;
+        if (r.isFinal) this.finalText += r[0].transcript + " ";
+        else interim += r[0].transcript;
+      }
+      onUpdate((this.finalText + interim).trim());
+    };
+    rec.onerror = () => {};
+    rec.start();
+  }
+
+  stop(): string {
+    try {
+      this.rec?.stop();
+    } catch {
+      /* noop */
+    }
+    this.rec = null;
+    return this.finalText.trim();
+  }
+}
+
 export async function transcribe(blob: Blob): Promise<string> {
   const fd = new FormData();
   fd.append("file", blob, "recording.wav");

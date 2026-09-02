@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 import { ArrowLeft, Check, Loader2, Mic, Plus, Save, Sparkles, Square, Trash2 } from "lucide-react";
-import { Dictation, transcribe } from "@/lib/dictation";
+import { Dictation, LiveTranscriber, transcribe } from "@/lib/dictation";
 import { draftRfqFromText, type DraftPatch } from "@/lib/rfq-draft.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,6 +108,8 @@ function NewRfqPage() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const dictation = useRef<Dictation | null>(null);
+  const live = useRef<LiveTranscriber | null>(null);
+  const instructionBase = useRef("");
 
   const currentForm = () => ({
     ...head,
@@ -169,14 +171,20 @@ function NewRfqPage() {
   async function toggleMic() {
     if (recording) {
       setRecording(false);
+      const base = instructionBase.current;
+      const liveText = live.current?.stop() ?? "";
+      live.current = null;
+      const applyText = (text: string) =>
+        setInstruction(text.trim() ? (base ? `${base} ${text.trim()}` : text.trim()) : base);
+      applyText(liveText);
       setTranscribing(true);
       try {
         const blob = await dictation.current!.stop();
         const text = await transcribe(blob);
-        if (text.trim()) setInstruction((v) => (v ? `${v} ${text.trim()}` : text.trim()));
-        else setAiError("Nothing was picked up — try recording again.");
+        if (text.trim()) applyText(text);
+        else if (!liveText.trim()) setAiError("Nothing was picked up — try recording again.");
       } catch (e) {
-        setAiError(e instanceof Error ? e.message : String(e));
+        if (!liveText.trim()) setAiError(e instanceof Error ? e.message : String(e));
       } finally {
         setTranscribing(false);
       }
@@ -186,6 +194,13 @@ function NewRfqPage() {
     try {
       dictation.current = new Dictation();
       await dictation.current.start();
+      instructionBase.current = instruction.trim();
+      const lt = new LiveTranscriber();
+      live.current = lt;
+      if (lt.supported) {
+        const base = instructionBase.current;
+        lt.start((text) => setInstruction(base ? `${base} ${text}` : text));
+      }
       setRecording(true);
     } catch {
       setAiError("Microphone access is needed to dictate. Allow it in your browser and try again.");
@@ -287,7 +302,11 @@ function NewRfqPage() {
           />
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="rail-label">
-              {recording ? "Recording — click stop when done" : transcribing ? "Transcribing…" : "⌘↵ to send"}
+              {recording
+                ? "Recording — text appears as you speak, click stop when done"
+                : transcribing
+                  ? "Polishing transcript…"
+                  : "⌘↵ to send"}
             </span>
             <div className="flex items-center gap-2">
               <Button
