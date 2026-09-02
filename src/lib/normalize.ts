@@ -32,15 +32,24 @@ function statedText(l: ExtractedLine, fallbackCurrency: string): string {
   const p = l.statedPrice;
   if (p?.amount == null) return l.quotedDescription ? `no price — ${l.quotedDescription}` : "no price stated";
   const cur = p.currency ?? fallbackCurrency;
-  const basis =
-    p.basisText ??
-    (p.basis === "per_kg"
+  const canonical =
+    p.basis === "per_kg"
       ? "per kg"
       : p.basis === "per_pack"
         ? `per pack of ${p.packQty ?? "?"}`
-        : "per unit");
+        : "per unit";
+  // Vendor wording is preferred, but models often echo the amount or the
+  // currency back into it — that would read as "INR 38 38 per kg".
+  const wording = (p.basisText ?? "")
+    .replace(new RegExp(String(p.amount).replace(".", "\\."), "g"), "")
+    .replace(/\b(inr|usd|rs\.?|₹|\$)\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s,\-–—:/]+|[\s,\-–—:/]+$/g, "")
+    .trim();
+  const basis = wording.length > 2 ? wording : canonical;
   return `${cur} ${p.amount.toLocaleString("en-IN")} ${basis}`;
 }
+
 
 export interface OverrideMap {
   /** `${vendorId}:${lineNo}` -> buyer-approved landed unit price. */
