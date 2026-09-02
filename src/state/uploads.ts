@@ -67,6 +67,25 @@ export function addUpload(input: Omit<UploadedResponse, "id" | "receivedAt">): U
   return entry;
 }
 
+/** Swap the file (and optionally doc type / note) on an existing upload, keeping its id. */
+export function replaceUpload(
+  id: string,
+  patch: Partial<Pick<UploadedResponse, "fileLabel" | "kind" | "mime" | "base64" | "docType" | "note">>,
+): UploadedResponse | undefined {
+  load();
+  const idx = items.findIndex((i) => i.id === id);
+  if (idx === -1) return undefined;
+  const updated: UploadedResponse = {
+    ...items[idx]!,
+    ...patch,
+    receivedAt: new Date().toISOString(),
+  };
+  items = [...items.slice(0, idx), updated, ...items.slice(idx + 1)];
+  persist();
+  emit();
+  return updated;
+}
+
 export function removeUpload(id: string) {
   load();
   items = items.filter((i) => i.id !== id);

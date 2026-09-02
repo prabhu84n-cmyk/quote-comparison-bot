@@ -14,9 +14,10 @@ import {
   AlertCircle,
   Upload,
   Trash2,
+  FileUp,
 } from "lucide-react";
 import { vendors } from "@/data/vendors";
-import { addUpload, kindForFile, removeUpload, uploadToInbox, useUploads, type DocType } from "@/state/uploads";
+import { addUpload, kindForFile, removeUpload, replaceUpload, uploadToInbox, useUploads, type DocType } from "@/state/uploads";
 import { rfq } from "@/data/rfq";
 import { useWorkspace } from "@/state/workspace";
 import { useRfqStore } from "@/state/rfqs";
@@ -35,7 +36,7 @@ import {
 } from "@/components/ui/dialog";
 import { Panel, Tag, Confidence } from "@/components/Primitives";
 import { QuestionnaireUpload } from "@/components/QuestionnaireUpload";
-import type { SourceKind } from "@/lib/types";
+import type { SourceKind, VendorInbox } from "@/lib/types";
 
 export const Route = createFileRoute("/inbox")({
   validateSearch: (search: Record<string, unknown>) =>
@@ -246,6 +247,19 @@ function InboxPage() {
                 <span className="rail-label">Known quirk · </span>
                 {active.hint}
               </p>
+              {active.uploaded && (
+                <ReplaceResponse
+                  vendor={active}
+                  busy={busy}
+                  onReplaced={(v) => {
+                    // Old extraction, overrides and awards go first; the new
+                    // file is then extracted fresh so the comparison and
+                    // analyst rebuild from the replacement only.
+                    removeVendor(active.id);
+                    void runVendor(v);
+                  }}
+                />
+              )}
               {active.uploaded && (
                 <Button
                   variant="ghost"
@@ -523,6 +537,132 @@ function UploadDialog({ rfqId, onAdded }: { rfqId: string; onAdded: (id: string)
           </Button>
           <Button onClick={submit} disabled={saving || reading}>
             {saving ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Save response
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Swap an uploaded response for a corrected file. The upload keeps its id,
+ * the old extraction is purged by the caller, and the new file is extracted
+ * immediately so the comparison and analyst pick it up.
+ */
+function ReplaceResponse({
+  vendor,
+  busy,
+  onReplaced,
+}: {
+  vendor: VendorInbox;
+  busy: boolean;
+  onReplaced: (v: VendorInbox) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [picked, setPicked] = useState<PickedFile | null>(null);
+  const [reading, setReading] = useState(false);
+  const [replacing, setReplacing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const pickFile = async (f: File | null) => {
+    setError(null);
+    setPicked(null);
+    if (!f) return;
+    if (f.size > MAX_UPLOAD_BYTES) {
+      setError(`"${f.name}" is ${(f.size / 1024 / 1024).toFixed(1)} MB — the limit is 15 MB per file.`);
+      return;
+    }
+    setReading(true);
+    try {
+      const buf = new Uint8Array(await f.arrayBuffer());
+      let bin = "";
+      const chunk = 0x8000;
+      for (let i = 0; i < buf.length; i += chunk) bin += String.fromCharCode(...buf.subarray(i, i + chunk));
+      setPicked({ name: f.name, type: f.type || "application/octet-stream", size: f.size, base64: btoa(bin) });
+    } catch {
+      setError(
+        `"${f.name}" could not be read. If it sits in a synced or network folder (OneDrive, Drive, SharePoint), copy it to a local folder like Desktop and pick it again.`,
+      );
+    } finally {
+      setReading(false);
+    }
+  };
+
+  const submit = () => {
+    setError(null);
+    if (!picked) return setError("Pick the replacement file.");
+    setReplacing(true);
+    try {
+      const updated = replaceUpload(vendor.id, {
+        fileLabel: picked.name,
+        kind: kindForFile(picked.name, picked.type),
+        mime: picked.type,
+        base64: picked.base64,
+      });
+      if (!updated) throw new Error("The original upload could not be found.");
+      setOpen(false);
+      setPicked(null);
+      onReplaced(uploadToInbox(updated));
+    } catch (e) {
+      setError(
+        e instanceof DOMException && e.name === "QuotaExceededError"
+          ? "Browser storage is full — remove some uploaded responses and try again."
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    } finally {
+      setReplacing(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" disabled={busy}>
+          <FileUp className="size-4" /> Replace response
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Replace response from {vendor.name}</DialogTitle>
+          <DialogDescription>
+            The previous file and its extraction are discarded — including any price overrides and awards — and
+            the new file is extracted straight away.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="replace-file">New file</Label>
+            <Input
+              id="replace-file"
+              type="file"
+              accept=".xlsx,.xls,.docx,.pdf,.txt,.eml,.csv,image/*"
+              onChange={(e) => void pickFile(e.target.files?.[0] ?? null)}
+            />
+            {reading && (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" /> Reading file…
+              </p>
+            )}
+            {picked && (
+              <p className="text-xs text-ok">
+                {picked.name} · {(picked.size / 1024).toFixed(0)} KB — ready
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Replacing <span className="num">{vendor.fileLabel}</span>. Max 15 MB.
+            </p>
+          </div>
+          {error && <p className="text-[13px] text-risk">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={replacing || reading || !picked}>
+            {replacing ? <Loader2 className="size-4 animate-spin" /> : <FileUp className="size-4" />}
+            Replace & extract
           </Button>
         </DialogFooter>
       </DialogContent>
