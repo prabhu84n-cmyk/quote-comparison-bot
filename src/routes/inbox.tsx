@@ -502,7 +502,7 @@ function UploadDialog({ rfqId, onAdded }: { rfqId: string; onAdded: (id: string)
           <Button variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>
-          <Button onClick={() => void submit()} disabled={saving}>
+          <Button onClick={submit} disabled={saving || reading}>
             {saving ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Save response
           </Button>
         </DialogFooter>
