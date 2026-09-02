@@ -177,24 +177,49 @@ function RfqDetailPage() {
     }
   }
 
-  function applyAll() {
-    if (!pending) return;
-    mutate((r) => applyOps(r, pending.changes, pending.lineOps, pending.questionOps));
+  function weightError(r: Rfq): string | null {
+    const q = r.questionnaire ?? [];
+    if (q.length === 0) return null;
+    const total = q.reduce((s, item) => s + (Number(item.weight) || 0), 0);
+    return total === 100
+      ? null
+      : `Questionnaire weights must add up to 100% — they currently total ${total}%. Adjust the weights before saving.`;
+  }
+
+  // Copilot changes autosave on confirm; on error they stay in the draft for fixing.
+  async function applyAll() {
+    if (!pending || !stored) return;
+    const ops = pending;
     setPending(null);
-    setEditing(true);
+    const next = applyOps({ ...((draft ?? stored) as Rfq) }, ops.changes, ops.lineOps, ops.questionOps);
+    const wErr = weightError(next);
+    if (wErr) {
+      setDraft(next);
+      setEditing(true);
+      setSaveError(wErr);
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await updateRfq(next);
+      setDraft(null);
+      setEditing(false);
+    } catch (e) {
+      setDraft(next);
+      setEditing(true);
+      setSaveError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function save() {
     if (!draft) return;
-    const q = draft.questionnaire ?? [];
-    if (q.length > 0) {
-      const total = q.reduce((s, item) => s + (Number(item.weight) || 0), 0);
-      if (total !== 100) {
-        setSaveError(
-          `Questionnaire weights must add up to 100% — they currently total ${total}%. Adjust the weights before saving.`,
-        );
-        return;
-      }
+    const wErr = weightError(draft);
+    if (wErr) {
+      setSaveError(wErr);
+      return;
     }
     setSaving(true);
     setSaveError(null);
