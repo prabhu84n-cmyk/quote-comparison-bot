@@ -150,8 +150,14 @@ function repairJson(input: string): string {
   };
 
   let out = input.slice(0, scan(input).safe).replace(/,\s*$/, "");
-  // A dangling `"key":` with no value must go too.
-  out = out.replace(/,?\s*"[^"]*"\s*:\s*$/, "").replace(/,\s*$/, "");
+  // A dangling key (with or without its colon) and no value must go too.
+  out = out.replace(/,?\s*"[^"]*"\s*:?\s*$/, (m, ...a) => {
+    const idx = a[a.length - 2] as number;
+    // Keep it when it is a plain array element rather than an object key.
+    return /[[,]\s*$/.test(out.slice(0, idx)) && !m.includes(":") ? m : "";
+  });
+  out = out.replace(/,\s*$/, "");
+
   const { stack } = scan(out);
   while (stack.length) out += stack.pop();
   return out;
