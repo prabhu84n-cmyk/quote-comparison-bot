@@ -718,6 +718,8 @@ function RfqDetailPage() {
           })}
         </ul>
       </Panel>
+
+      <SendRfqDialog rfq={live} open={sendOpen} onClose={() => setSendOpen(false)} />
     </div>
   );
 }
