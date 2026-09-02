@@ -1,12 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Loader2, Sparkles, TriangleAlert, Check, Download } from "lucide-react";
+import { ArrowRight, Loader2, Sparkles, TriangleAlert, Check, Download, Plus } from "lucide-react";
 import { rfq } from "@/data/rfq";
 import { downloadRfqPdf } from "@/lib/rfq-pdf";
 import { rfqCopilot, type CopilotReply, type RfqChange } from "@/lib/copilot.functions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Panel, Stat } from "@/components/Primitives";
+import { RfqGrid, StatusSelect } from "@/components/RfqStatus";
+import { useRfqStore } from "@/state/rfqs";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
