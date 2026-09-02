@@ -99,7 +99,7 @@ function NewRfqPage() {
   const setQ = (i: number, patch: Partial<QuestionnaireItem>) =>
     setQuestions((qs) => qs.map((q, idx) => (idx === i ? { ...q, ...patch } : q)));
 
-  function save() {
+  async function save() {
     if (!head.title.trim()) return setError("Give the RFQ a name.");
     const kept = lines.filter((l) => l.description.trim() || l.sku.trim());
     if (!kept.length) return setError("Add at least one line item with a description.");
@@ -123,7 +123,11 @@ function NewRfqPage() {
         .filter((q) => q.question.trim())
         .map((q, i) => ({ ...q, id: `Q${i + 1}` })),
     };
-    addRfq(created, status);
+    try {
+      await addRfq(created, status);
+    } catch {
+      return setError("Could not save the RFQ to the database. Please try again.");
+    }
     void navigate({ to: "/rfq/$id", params: { id } });
   }
 
