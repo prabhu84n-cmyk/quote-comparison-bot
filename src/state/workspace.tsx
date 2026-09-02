@@ -224,7 +224,30 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     [setSlice],
   );
 
-  const value: WorkspaceValue = { byRfq, setSlice, runVendorFor, attachQuestionnaireFor };
+  /** Delete a vendor's response entirely: extraction, state, overrides, awards. */
+  const removeVendorFor = useCallback(
+    (rfqId: string, vendorId: string) =>
+      setSlice(rfqId, (s) => {
+        const overrides = Object.fromEntries(
+          Object.entries(s.overrides).filter(([k]) => !k.startsWith(`${vendorId}:`)),
+        );
+        const awards = Object.fromEntries(
+          Object.entries(s.awards).filter(([, v]) => v !== vendorId),
+        );
+        const states = { ...s.states };
+        delete states[vendorId];
+        return {
+          ...s,
+          extractions: s.extractions.filter((e) => e.vendorId !== vendorId),
+          overrides,
+          awards,
+          states,
+        };
+      }),
+    [setSlice],
+  );
+
+  const value: WorkspaceValue = { byRfq, setSlice, runVendorFor, attachQuestionnaireFor, removeVendorFor };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
@@ -237,7 +260,7 @@ export function useWorkspace(rfqId?: string, doc?: Rfq) {
   const ctx = useContext(Ctx);
   // A stale HMR module copy can briefly see an empty context; degrade instead of
   // blanking the page.
-  const { byRfq, setSlice, runVendorFor, attachQuestionnaireFor } = ctx ?? FALLBACK_CTX;
+  const { byRfq, setSlice, runVendorFor, attachQuestionnaireFor, removeVendorFor } = ctx ?? FALLBACK_CTX;
 
   const id = rfqId ?? "";
   const slice = (rfqId ? byRfq[rfqId] : undefined) ?? EMPTY_SLICE;
