@@ -6,7 +6,7 @@ import type { Rfq } from "@/lib/types";
  * Vendor-facing RFQ pack. Deliberately omits internal buyer artefacts:
  * copilot interactions, questionnaire weights and scoring targets.
  */
-export function downloadRfqPdf(rfq: Rfq) {
+function buildRfqPdfDoc(rfq: Rfq) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const M = 40;
   const W = doc.internal.pageSize.getWidth();
@@ -136,5 +136,17 @@ export function downloadRfqPdf(rfq: Rfq) {
     doc.text(`Page ${p} of ${pages}`, W - M, doc.internal.pageSize.getHeight() - 20, { align: "right" });
   }
 
-  doc.save(`${rfq.id}-RFQ.pdf`);
+  return doc;
+}
+
+export function rfqPdfFileName(rfq: Rfq) {
+  return `${rfq.id}-RFQ.pdf`;
+}
+
+export function buildRfqPdfBlob(rfq: Rfq): Blob {
+  return buildRfqPdfDoc(rfq).output("blob");
+}
+
+export function downloadRfqPdf(rfq: Rfq) {
+  buildRfqPdfDoc(rfq).save(rfqPdfFileName(rfq));
 }
