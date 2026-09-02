@@ -116,7 +116,7 @@ export function useRfqStore() {
         status,
         line_items: r.lineItems.length,
         submission_deadline: r.submissionDeadline,
-        doc: r as unknown as Record<string, unknown>,
+        doc: r as unknown as never,
       });
       if (error) throw error;
     },
