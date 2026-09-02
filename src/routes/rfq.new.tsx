@@ -269,6 +269,102 @@ function NewRfqPage() {
         <p className="rounded-sm border border-risk/40 bg-risk-soft px-3 py-2 text-[13px] text-risk">{error}</p>
       )}
 
+      <Panel title="Drafting copilot" hint="Describe the RFQ — type or dictate">
+        <div className="space-y-3 p-4">
+          <Textarea
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) void askCopilot();
+            }}
+            rows={3}
+            placeholder="e.g. Annual corrugated carton requirement for our Pune plant, 3-ply 150 GSM boxes, 10,000 pieces required by August, quotes due in two weeks. Ask vendors about ISO certification and lead time."
+            className="resize-none bg-background text-[13px]"
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="rail-label">
+              {recording ? "Recording — click stop when done" : transcribing ? "Transcribing…" : "⌘↵ to send"}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant={recording ? "destructive" : "secondary"}
+                onClick={() => void toggleMic()}
+                disabled={transcribing}
+              >
+                {transcribing ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : recording ? (
+                  <Square className="size-4" />
+                ) : (
+                  <Mic className="size-4" />
+                )}
+                {recording ? "Stop" : "Dictate"}
+              </Button>
+              <Button size="sm" onClick={() => void askCopilot()} disabled={aiLoading || !instruction.trim()}>
+                {aiLoading ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+                Draft RFQ
+              </Button>
+            </div>
+          </div>
+
+          {aiError && (
+            <p className="rounded-sm border border-risk/40 bg-risk-soft px-3 py-2 text-[13px] text-risk">{aiError}</p>
+          )}
+
+          {reply?.reply && (
+            <p className="rounded-sm border border-border bg-background/60 px-3 py-2.5 text-[13px] leading-relaxed">
+              {reply.reply}
+            </p>
+          )}
+
+          {pendingCount > 0 && (
+            <div className="rounded-sm border border-signal/40 bg-signal-soft p-3">
+              <div className="flex items-center justify-between">
+                <span className="rail-label text-signal">{pendingCount} proposed value(s)</span>
+                <Button size="sm" variant="secondary" onClick={applyPatch}>
+                  <Check className="size-3.5" /> Fill form
+                </Button>
+              </div>
+              <ul className="mt-2.5 space-y-1.5 text-[13px]">
+                {Object.entries(pending?.header ?? {}).map(([k, v]) => (
+                  <li key={k}>
+                    <span className="rail-label">{k}</span>
+                    <div className="num break-words">{v}</div>
+                  </li>
+                ))}
+                {(pending?.lineItems ?? []).map((l, i) => (
+                  <li key={`l${i}`}>
+                    <span className="rail-label">Line item · {pending?.lineMode}</span>
+                    <div className="num break-words">
+                      {String(l.description ?? l.sku ?? "")} · qty {String(l.quantity ?? "—")} {String(l.uom ?? "")}
+                    </div>
+                  </li>
+                ))}
+                {(pending?.questionnaire ?? []).map((q, i) => (
+                  <li key={`q${i}`}>
+                    <span className="rail-label">Question · weight {q.weight}%</span>
+                    <div className="num break-words">{q.question}</div>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Review the filled form, then click “Create RFQ” to save — nothing is saved automatically.
+              </p>
+            </div>
+          )}
+
+          {(reply?.gaps?.length ?? 0) > 0 && (
+            <div className="rounded-sm border border-warn/40 bg-warn-soft p-3">
+              <span className="rail-label text-warn">Still missing</span>
+              <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[13px]">
+                {reply?.gaps.map((g) => <li key={g}>{g}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      </Panel>
+
       <Panel title="RFQ header">
         <div className="grid gap-4 p-4 md:grid-cols-3">
           <div className="md:col-span-3">
