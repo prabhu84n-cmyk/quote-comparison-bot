@@ -297,6 +297,11 @@ export function useWorkspace(rfqId?: string, doc?: Rfq) {
 
   const resetAll = useCallback(() => setSlice(id, () => EMPTY_SLICE), [setSlice, id]);
 
+  const removeVendor = useCallback(
+    (vendorId: string) => removeVendorFor(id, vendorId),
+    [removeVendorFor, id],
+  );
+
   const setOverride = useCallback(
     (vendorId: string, lineNo: number, unitPriceLanded: number, note: string) =>
       setSlice(id, (s) => ({
@@ -345,6 +350,7 @@ export function useWorkspace(rfqId?: string, doc?: Rfq) {
     runVendor,
     runAll,
     resetAll,
+    removeVendor,
     setOverride,
     clearOverride,
     award,
