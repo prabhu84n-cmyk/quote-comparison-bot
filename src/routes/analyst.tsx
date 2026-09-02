@@ -369,6 +369,41 @@ function AnalystPage() {
             ))}
           </div>
         </Panel>
+        <Panel title="Question history" hint={`${log.length} saved`}>
+          {log.length === 0 ? (
+            <div className="px-4 py-3 text-xs text-muted-foreground">
+              Nothing logged yet. Every question and answer is saved for future reference.
+            </div>
+          ) : (
+            <ul className="max-h-[420px] divide-y divide-border overflow-y-auto text-[13px]">
+              {log.map((row) => (
+                <li key={row.id} className="px-3 py-2">
+                  <button
+                    onClick={() => setOpenLog(openLog === row.id ? null : row.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="rail-label flex items-center gap-1.5">
+                      <History className="size-3" />
+                      {new Date(row.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                    </div>
+                    <div className="mt-1 line-clamp-2 text-xs">{row.question}</div>
+                  </button>
+                  {openLog === row.id && (
+                    <div className="mt-2 space-y-2 border-t border-border pt-2 text-xs text-muted-foreground">
+                      <p className="whitespace-pre-wrap">{row.error ?? row.answer}</p>
+                      <button
+                        onClick={() => void ask(row.question)}
+                        className="rounded-sm border border-border px-2 py-1 text-[11px] transition-colors hover:border-signal/60"
+                      >
+                        Ask again
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
       </aside>
     </div>
   );
