@@ -20,7 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Panel, Stat } from "@/components/Primitives";
-import { StatusTag } from "@/components/RfqStatus";
+import { StatusTag, StatusSelect } from "@/components/RfqStatus";
 import { SendRfqDialog } from "@/components/SendRfqDialog";
 import { useRfqStore } from "@/state/rfqs";
 import { downloadRfqPdf } from "@/lib/rfq-pdf";
@@ -139,7 +139,7 @@ function applyOps(base: Rfq, changes: RfqChange[], lineOps: LineOp[], questionOp
 
 function RfqDetailPage() {
   const { id } = Route.useParams();
-  const { getRfq, statusOf, updateRfq } = useRfqStore();
+  const { getRfq, statusOf, updateRfq, setStatus } = useRfqStore();
   const stored = getRfq(id);
 
   const [draft, setDraft] = useState<Rfq | null>(null);
@@ -278,7 +278,15 @@ function RfqDetailPage() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusTag status={statusOf(stored.id)} />
+          {editing ? (
+            <StatusSelect
+              value={statusOf(stored.id)}
+              onChange={(s) => setStatus(stored.id, s)}
+              className="h-8 w-[190px] bg-chassis text-[13px]"
+            />
+          ) : (
+            <StatusTag status={statusOf(stored.id)} />
+          )}
           {editing ? (
             <>
               <Button onClick={() => void save()} disabled={saving || !dirty}>
