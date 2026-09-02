@@ -49,6 +49,9 @@ const emptyLine = (): LineDraft => ({
   notes: "",
 });
 
+/** Auto SKU in the format AER-<year>-<3-digit sequence starting at 001>. */
+const skuFor = (index: number) => `AER-${new Date().getFullYear()}-${String(index + 1).padStart(3, "0")}`;
+
 const emptyQuestion = (i: number): QuestionnaireItem => ({
   id: `Q${i}`,
   question: "",
