@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { rfq } from "@/data/rfq";
+import { rfq as seedRfq } from "@/data/rfq";
 import { vendorById } from "@/data/vendors";
-import type { SourceKind, VendorExtraction } from "./types";
+import type { Rfq, SourceKind, VendorExtraction } from "./types";
 
 const Input = z.object({
   vendorId: z.string(),
@@ -13,9 +13,11 @@ const Input = z.object({
   kind: z.enum(["xlsx", "pdf", "docx", "image", "email"]).optional(),
   hint: z.string().optional(),
   docType: z.enum(["quote", "questionnaire", "both"]).optional(),
+  /** The RFQ this response belongs to — line catalogue and questionnaire come from it. */
+  rfqDoc: z.any().optional(),
 });
 
-const LINE_CATALOGUE = () =>
+const LINE_CATALOGUE = (rfq: Rfq) =>
   rfq.lineItems
     .map(
       (l) =>
@@ -23,7 +25,7 @@ const LINE_CATALOGUE = () =>
     )
     .join("\n");
 
-const QUESTIONS = () => rfq.questionnaire.map((q) => `${q.id}: ${q.question}`).join("\n");
+const QUESTIONS = (rfq: Rfq) => rfq.questionnaire.map((q) => `${q.id}: ${q.question}`).join("\n");
 
 const SYSTEM = `You are an extraction engine inside a procurement platform. You read one vendor's quotation, in whatever shape it arrived, and return strict JSON.
 
@@ -36,15 +38,15 @@ Rules that matter more than completeness:
 - Do not emit lines for RFQ items the vendor did not quote. Missing lines are handled downstream.
 - Confidence should genuinely vary. A crisp spreadsheet cell is 0.95+. A number read off a blurred photo at an angle is 0.5-0.75. A rate inferred from "rest same as last year" is below 0.5.`;
 
-function buildUserPrompt(vendorName: string, hint: string, locationHint: string) {
+function buildUserPrompt(rfq: Rfq, vendorName: string, hint: string, locationHint: string) {
   return `RFQ ${rfq.id} — ${rfq.title}
 Buyer currency: ${rfq.currency}. Delivery: ${rfq.deliveryLocation}.
 
 RFQ LINE ITEMS (lineNo|item number|description|specification|quantity|board weight). Vendors are asked to quote the item number for identification:
-${LINE_CATALOGUE()}
+${LINE_CATALOGUE(rfq)}
 
 BUYER QUESTIONNAIRE:
-${QUESTIONS()}
+${QUESTIONS(rfq)}
 
 VENDOR: ${vendorName}
 Known about this submission: ${hint}
@@ -119,8 +121,9 @@ export const extractVendorQuote = createServerFn({ method: "POST" })
     const { parseSource } = await import("./parse.server");
     const { chatText, parseJsonLoose, EXTRACTION_MODEL } = await import("./ai.server");
 
+    const doc = (data.rfqDoc as Rfq | undefined) ?? seedRfq;
     const parsed = await parseSource(vendor.kind as SourceKind, data.base64, data.mime);
-    const prompt = buildUserPrompt(vendor.name, `${vendor.hint}${docNote ? ` ${docNote}` : ""}`, parsed.locationHint);
+    const prompt = buildUserPrompt(doc, vendor.name, `${vendor.hint}${docNote ? ` ${docNote}` : ""}`, parsed.locationHint);
 
     const userContent = parsed.imageDataUrl
       ? [

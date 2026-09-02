@@ -1,15 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { rfq } from "@/data/rfq";
+import { rfq as seedRfq } from "@/data/rfq";
 import { vendors } from "@/data/vendors";
 import { buildComparison, QUALIFY_THRESHOLD } from "./normalize";
-import type { VendorExtraction } from "./types";
+import type { Rfq, VendorExtraction } from "./types";
 
 const Input = z.object({
   question: z.string(),
   history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() })),
   extractions: z.array(z.any()),
   awards: z.record(z.string(), z.string()),
+  rfqDoc: z.any().optional(),
 });
 
 export interface AnalystTable {
@@ -36,8 +37,8 @@ export interface AnalystAnswer {
 }
 
 /** Renders the normalized comparison into the compact text the model reasons over. */
-function buildContext(extractions: VendorExtraction[], awards: Record<string, string>) {
-  const comparison = buildComparison(extractions as VendorExtraction[]);
+function buildContext(extractions: VendorExtraction[], awards: Record<string, string>, rfq: Rfq = seedRfq) {
+  const comparison = buildComparison(extractions as VendorExtraction[], {}, rfq);
   const ids = comparison.summaries.map((s) => s.vendorId);
   const lines: string[] = [];
 
@@ -125,7 +126,7 @@ export const askAnalyst = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data }): Promise<AnalystAnswer> => {
     const { chatText, parseJsonLoose, ANALYST_MODEL } = await import("./ai.server");
-    const context = buildContext(data.extractions as VendorExtraction[], data.awards);
+    const context = buildContext(data.extractions as VendorExtraction[], data.awards, (data.rfqDoc as Rfq | undefined) ?? seedRfq);
 
     const raw = await chatText({
       model: ANALYST_MODEL,
@@ -151,10 +152,10 @@ export const askAnalyst = createServerFn({ method: "POST" })
   });
 
 export const suggestQuestions = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ extractions: z.array(z.any()) }).parse(d))
+  .inputValidator((d: unknown) => z.object({ extractions: z.array(z.any()), rfqDoc: z.any().optional() }).parse(d))
   .handler(async ({ data }): Promise<string[]> => {
     const { chatText, parseJsonLoose, ANALYST_MODEL } = await import("./ai.server");
-    const context = buildContext(data.extractions as VendorExtraction[], {});
+    const context = buildContext(data.extractions as VendorExtraction[], {}, (data.rfqDoc as Rfq | undefined) ?? seedRfq);
     const raw = await chatText({
       model: ANALYST_MODEL,
       jsonMode: true,
