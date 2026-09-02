@@ -139,7 +139,7 @@ function applyOps(base: Rfq, changes: RfqChange[], lineOps: LineOp[], questionOp
 
 function RfqDetailPage() {
   const { id } = Route.useParams();
-  const { getRfq, statusOf, updateRfq } = useRfqStore();
+  const { getRfq, statusOf, updateRfq, setStatus } = useRfqStore();
   const stored = getRfq(id);
 
   const [draft, setDraft] = useState<Rfq | null>(null);
