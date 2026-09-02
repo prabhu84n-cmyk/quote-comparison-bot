@@ -13,6 +13,15 @@ const NAV = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { extractions, busy } = useWorkspace();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Keep the active RFQ while moving between inbox, comparison and analyst.
+  const activeRfq = useRouterState({
+    select: (s) => {
+      const fromSearch = (s.location.search as { rfq?: string } | undefined)?.rfq;
+      if (fromSearch) return fromSearch;
+      const m = /^\/rfq\/([^/]+)/.exec(s.location.pathname);
+      return m ? decodeURIComponent(m[1]!) : undefined;
+    },
+  });
 
   return (
     <div className="min-h-screen">
@@ -35,6 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={n.to}
                   to={n.to}
+                  search={n.to === "/" ? undefined : activeRfq ? { rfq: activeRfq } : undefined}
                   className={[
                     "group relative flex items-center gap-2 rounded-sm px-3 py-1.5 text-[13px] transition-colors",
                     active
