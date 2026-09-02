@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Check, Download, Loader2, Sparkles, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Download, Loader2, Sparkles, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Panel, Stat } from "@/components/Primitives";
-import { StatusSelect } from "@/components/RfqStatus";
+import { StatusTag } from "@/components/RfqStatus";
 import { useRfqStore } from "@/state/rfqs";
 import { downloadRfqPdf } from "@/lib/rfq-pdf";
 import { rfqCopilot, type CopilotReply, type RfqChange } from "@/lib/copilot.functions";
@@ -39,7 +39,7 @@ const HEADER_FIELDS: [keyof Rfq, string][] = [
 
 function RfqDetailPage() {
   const { id } = Route.useParams();
-  const { getRfq, statusOf, setStatus } = useRfqStore();
+  const { getRfq, statusOf } = useRfqStore();
   const rfq = getRfq(id);
 
   const [patch, setPatch] = useState<Record<string, string>>({});
@@ -97,9 +97,14 @@ function RfqDetailPage() {
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{live.purpose}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <StatusSelect value={statusOf(rfq.id)} onChange={(s) => setStatus(rfq.id, s)} />
+          <StatusTag status={statusOf(rfq.id)} />
           <Button variant="secondary" onClick={() => downloadRfqPdf(rfq)}>
             <Download className="size-4" /> Download RFQ (PDF)
+          </Button>
+          <Button asChild>
+            <Link to="/inbox">
+              Vendor responses <ArrowRight className="size-4" />
+            </Link>
           </Button>
           <Button asChild variant="secondary">
             <Link to="/">

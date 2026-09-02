@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Plus } from "lucide-react";
+import { useState } from "react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RfqGrid } from "@/components/RfqStatus";
-import { useRfqStore } from "@/state/rfqs";
+import { RFQ_STATUSES, useRfqStore, type RfqStatus } from "@/state/rfqs";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,6 +27,9 @@ export const Route = createFileRoute("/")({
 
 function RfqListPage() {
   const { summaries } = useRfqStore();
+  const [statusFilter, setStatusFilter] = useState<RfqStatus | "all">("all");
+
+  const rows = statusFilter === "all" ? summaries : summaries.filter((r) => r.status === statusFilter);
 
   return (
     <div className="space-y-5">
@@ -37,20 +42,30 @@ function RfqListPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="secondary" asChild>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as RfqStatus | "all")}>
+            <SelectTrigger className="h-9 w-[190px] bg-chassis text-[13px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all" className="text-[13px]">
+                All statuses
+              </SelectItem>
+              {RFQ_STATUSES.map((s) => (
+                <SelectItem key={s} value={s} className="text-[13px]">
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button asChild>
             <Link to="/rfq/new">
               <Plus className="size-4" /> New RFQ
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link to="/inbox">
-              Vendor responses <ArrowRight className="size-4" />
             </Link>
           </Button>
         </div>
       </div>
 
-      <RfqGrid rows={summaries} />
+      <RfqGrid rows={rows} />
     </div>
   );
 }
