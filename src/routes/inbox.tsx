@@ -470,10 +470,20 @@ function UploadDialog({ rfqId, onAdded }: { rfqId: string; onAdded: (id: string)
               id="vendor-file"
               type="file"
               accept=".xlsx,.xls,.docx,.pdf,.txt,.eml,.csv,image/*"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => void pickFile(e.target.files?.[0] ?? null)}
             />
+            {reading && (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" /> Reading file…
+              </p>
+            )}
+            {picked && (
+              <p className="text-xs text-ok">
+                {picked.name} · {(picked.size / 1024).toFixed(0)} KB — ready to save
+              </p>
+            )}
             <p className="text-xs text-muted-foreground">
-              Excel, Word, PDF, image or plain text — whatever the vendor sent.
+              Excel, Word, PDF, image or plain text — whatever the vendor sent. Max 15 MB.
             </p>
           </div>
           <div className="space-y-1.5">
