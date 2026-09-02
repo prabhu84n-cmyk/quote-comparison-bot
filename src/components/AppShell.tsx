@@ -2,7 +2,6 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { FileText, Inbox, Table2, MessagesSquare, CircleDot } from "lucide-react";
 import { useWorkspace } from "@/state/workspace";
 import { vendors } from "@/data/vendors";
-import { rfq } from "@/data/rfq";
 
 const NAV = [
   { to: "/", label: "RFQ", icon: FileText, step: "01" },
