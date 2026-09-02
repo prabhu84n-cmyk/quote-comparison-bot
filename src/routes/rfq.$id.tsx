@@ -400,8 +400,8 @@ function RfqDetailPage() {
               <div className="rounded-sm border border-signal/40 bg-signal-soft p-3">
                 <div className="flex items-center justify-between">
                   <span className="rail-label text-signal">{pendingCount} proposed change(s)</span>
-                  <Button size="sm" variant="secondary" onClick={applyAll}>
-                    <Check className="size-3.5" /> Apply
+                  <Button size="sm" variant="secondary" onClick={() => void applyAll()} disabled={saving}>
+                    {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />} Apply
                   </Button>
                 </div>
                 <ul className="mt-2.5 space-y-2">
