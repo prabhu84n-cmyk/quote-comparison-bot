@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { rfq as seedRfq } from "@/data/rfq";
 import type { Rfq } from "@/lib/types";
@@ -101,10 +101,14 @@ function rowFor(r: Rfq, status: RfqStatus) {
 export function useRfqStore() {
   const s = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
-  const resolve = (r: Rfq) => s.overrides[r.id] ?? r;
-  const all: Rfq[] = [resolve(seedRfq), ...s.custom.map(resolve)];
+  // Memoised so consumers get a stable RFQ object identity between renders.
+  const all: Rfq[] = useMemo(() => {
+    const resolve = (r: Rfq) => s.overrides[r.id] ?? r;
+    return [resolve(seedRfq), ...s.custom.map(resolve)];
+  }, [s]);
   const statusOf = (id: string): RfqStatus =>
     s.statuses[id] ?? (id === seedRfq.id ? "Waiting for Quotes" : "Draft");
+
 
   return {
     rfqs: all,

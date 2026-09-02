@@ -1,10 +1,11 @@
-import { rfq } from "@/data/rfq";
+import { rfq as seedRfq } from "@/data/rfq";
 import { vendorMeta } from "@/data/vendor-registry";
 import type {
   Comparison,
   ExtractedLine,
   NormalizedCell,
   QualificationResult,
+  Rfq,
   VendorExtraction,
   VendorSummary,
 } from "./types";
@@ -63,6 +64,7 @@ export interface OverrideMap {
 export function buildComparison(
   extractions: VendorExtraction[],
   overrides: OverrideMap = {},
+  doc: Rfq = seedRfq,
 ): Comparison {
   const cells: NormalizedCell[] = [];
   const summaries: VendorSummary[] = [];
@@ -74,7 +76,7 @@ export function buildComparison(
     let currencyConverted = false;
 
     // Pass 1 — per-line net value in RFQ currency.
-    for (const item of rfq.lineItems) {
+    for (const item of doc.lineItems) {
       const raw = bestLineFor(ex.lines ?? [], item.lineNo);
       const key = `${ex.vendorId}:${item.lineNo}`;
 
@@ -128,12 +130,12 @@ export function buildComparison(
       }
 
       const cur = (p.currency ?? docCurrency ?? "INR").toUpperCase();
-      if (net != null && cur !== rfq.currency) {
+      if (net != null && cur !== doc.currency) {
         const rate = FX[cur];
         if (rate) {
           net = net * rate;
           currencyConverted = true;
-          notes.push(`Currency converted ${cur} → ${rfq.currency} at ${rate} (buyer reference rate).`);
+          notes.push(`Currency converted ${cur} → ${doc.currency} at ${rate} (buyer reference rate).`);
         } else {
           notes.push(`Currency ${cur} has no reference rate — value left unconverted.`);
           assumed = true;
@@ -180,7 +182,7 @@ export function buildComparison(
     // Pass 2 — allocate order-level charges pro rata over quoted value, add tax.
     const quoted = vendorCells.filter((c) => c.unitPriceNet != null);
     const netOrderValue = quoted.reduce((s, c) => {
-      const item = rfq.lineItems.find((l) => l.lineNo === c.lineNo)!;
+      const item = doc.lineItems.find((l) => l.lineNo === c.lineNo)!;
       return s + (c.unitPriceNet ?? 0) * item.quantity;
     }, 0);
 
@@ -210,7 +212,7 @@ export function buildComparison(
     }
 
     for (const c of vendorCells) {
-      const item = rfq.lineItems.find((l) => l.lineNo === c.lineNo)!;
+      const item = doc.lineItems.find((l) => l.lineNo === c.lineNo)!;
       const ov = overrides[`${ex.vendorId}:${c.lineNo}`];
       if (ov) {
         c.unitPriceLanded = ov.unitPriceLanded;
@@ -224,7 +226,7 @@ export function buildComparison(
       if (c.unitPriceNet == null) continue;
       const taxRate = ch.taxIncludedInPrice
         ? 0
-        : (c.raw?.taxRatePct ?? ch.taxRatePct ?? (rfq.taxable ? 18 : 0));
+        : (c.raw?.taxRatePct ?? ch.taxRatePct ?? (doc.taxable ? 18 : 0));
       const share = netOrderValue > 0 ? (c.unitPriceNet * item.quantity) / netOrderValue : 0;
       const allocated = charges * share;
       const landed = c.unitPriceNet * (1 + taxRate / 100) + allocated / item.quantity;
@@ -238,12 +240,12 @@ export function buildComparison(
     cells.push(...vendorCells);
 
     const priced = vendorCells.filter((c) => c.extendedTotal != null);
-    const qualification = scoreQuestionnaire(ex);
+    const qualification = scoreQuestionnaire(ex, doc);
     summaries.push({
       vendorId: ex.vendorId,
       name: vendor?.name ?? ex.vendor?.legalName ?? ex.vendorId,
       linesQuoted: priced.length,
-      linesTotal: rfq.lineItems.length,
+      linesTotal: doc.lineItems.length,
       comparableTotal: round(priced.reduce((s, c) => s + (c.extendedTotal ?? 0), 0)),
       coveredQuantityValue: round(netOrderValue),
       avgConfidence: priced.length
@@ -255,14 +257,14 @@ export function buildComparison(
     });
   }
 
-  return { currency: rfq.currency, fx: FX, cells, summaries };
+  return { currency: doc.currency, fx: FX, cells, summaries };
 }
 
-export function scoreQuestionnaire(ex: VendorExtraction): QualificationResult {
+export function scoreQuestionnaire(ex: VendorExtraction, doc: Rfq = seedRfq): QualificationResult {
   const answers: QualificationResult["answers"] = [];
   let score = 0;
   let max = 0;
-  for (const q of rfq.questionnaire) {
+  for (const q of doc.questionnaire) {
     max += q.weight;
     const a = (ex.questionnaire ?? []).find((x) => x.id === q.id);
     let pass: boolean | null = null;

@@ -19,6 +19,7 @@ import { vendors } from "@/data/vendors";
 import { addUpload, kindForFile, removeUpload, uploadToInbox, useUploads, type DocType } from "@/state/uploads";
 import { rfq } from "@/data/rfq";
 import { useWorkspace } from "@/state/workspace";
+import { useRfqStore } from "@/state/rfqs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,7 +69,9 @@ const ICONS: Record<SourceKind, typeof Mail> = {
 
 function InboxPage() {
   const { rfq: rfqId = rfq.id } = Route.useSearch();
-  const { states, extractions, runVendor, runAll, resetAll, busy } = useWorkspace();
+  const { getRfq } = useRfqStore();
+  const doc = getRfq(rfqId) ?? undefined;
+  const { states, extractions, runVendor, runAll, resetAll, busy } = useWorkspace(rfqId, doc);
   const uploads = useUploads(rfqId);
   const rfqVendors = [
     ...(rfqId === rfq.id ? vendors : []),
@@ -109,7 +112,7 @@ function InboxPage() {
               </Button>
               {extractions.length > 0 && (
                 <Button variant="secondary" asChild>
-                  <Link to="/compare">
+                  <Link to="/compare" search={{ rfq: rfqId }}>
                     Comparison <ArrowRight className="size-4" />
                   </Link>
                 </Button>
