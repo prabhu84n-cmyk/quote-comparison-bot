@@ -10,6 +10,7 @@ import { Panel, Stat, Tag, Confidence, inr } from "@/components/Primitives";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { QuestionnaireUpload } from "@/components/QuestionnaireUpload";
 import type { NormalizedCell } from "@/lib/types";
 
 export const Route = createFileRoute("/compare")({
@@ -46,7 +47,8 @@ function ComparePage() {
   const { rfq: rfqId = seedRfq.id } = Route.useSearch();
   const { getRfq } = useRfqStore();
   const doc = getRfq(rfqId) ?? undefined;
-  const { comparison, extractions, runAll, busy, awards, award } = useWorkspace(rfqId, doc);
+  const { comparison, extractions, runAll, busy, awards, award, attachQuestionnaire } =
+    useWorkspace(rfqId, doc);
   const rfq = doc ?? seedRfq;
   const [detail, setDetail] = useState<NormalizedCell | null>(null);
   const [commonBasket, setCommonBasket] = useState(true);
@@ -128,7 +130,7 @@ function ComparePage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="rail-label">Step 03 · Comparison · {rfqId} — {rfq.title}</div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Normalised side by side</h1>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Vendor quotes comparison</h1>
           <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">
             Every figure below is a landed unit price in {comparison.currency} — vendor rate, converted to the
             RFQ&apos;s pricing unit and currency, after discounts, plus tax and a pro-rata share of order-level
