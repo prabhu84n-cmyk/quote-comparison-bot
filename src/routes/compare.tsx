@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { ArrowRight, Award, Info, Loader2, Play, Sparkles } from "lucide-react";
-import { rfq } from "@/data/rfq";
+import { rfq as seedRfq } from "@/data/rfq";
 import { vendorMeta } from "@/data/vendor-registry";
 import { useWorkspace } from "@/state/workspace";
+import { useRfqStore } from "@/state/rfqs";
 import { Button } from "@/components/ui/button";
 import { Panel, Stat, Tag, Confidence, inr } from "@/components/Primitives";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -12,6 +13,10 @@ import { Label } from "@/components/ui/label";
 import type { NormalizedCell } from "@/lib/types";
 
 export const Route = createFileRoute("/compare")({
+  validateSearch: (search: Record<string, unknown>) =>
+    ({ rfq: typeof search["rfq"] === "string" && search["rfq"] ? search["rfq"] : seedRfq.id }) as {
+      rfq?: string;
+    },
   head: () => ({
     meta: [
       { title: "Quote Comparison — Normalised Side by Side" },
@@ -38,7 +43,11 @@ const STATE_TONE = {
 } as const;
 
 function ComparePage() {
-  const { comparison, extractions, runAll, busy, awards, award } = useWorkspace();
+  const { rfq: rfqId = seedRfq.id } = Route.useSearch();
+  const { getRfq } = useRfqStore();
+  const doc = getRfq(rfqId) ?? undefined;
+  const { comparison, extractions, runAll, busy, awards, award } = useWorkspace(rfqId, doc);
+  const rfq = doc ?? seedRfq;
   const [detail, setDetail] = useState<NormalizedCell | null>(null);
   const [commonBasket, setCommonBasket] = useState(true);
 
@@ -91,10 +100,11 @@ function ComparePage() {
     return (
       <div className="grid min-h-[60vh] place-items-center">
         <div className="panel max-w-md p-8 text-center">
-          <div className="rail-label">Step 03 · Comparison</div>
+          <div className="rail-label">Step 03 · Comparison · {rfqId}</div>
           <h1 className="mt-2 text-xl font-semibold tracking-tight">Nothing to compare yet</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Run the AI extraction over the five vendor responses and the normalised grid builds itself.
+            Run the AI extraction over the responses received for <span className="num">{rfqId}</span> and the
+            normalised grid builds itself.
           </p>
           <div className="mt-5 flex justify-center gap-2">
             <Button onClick={() => void runAll()} disabled={busy}>
@@ -102,7 +112,7 @@ function ComparePage() {
               Extract all quotes
             </Button>
             <Button variant="secondary" asChild>
-              <Link to="/inbox">Open inbox</Link>
+              <Link to="/inbox" search={{ rfq: rfqId }}>Open inbox</Link>
             </Button>
           </div>
         </div>
@@ -117,7 +127,7 @@ function ComparePage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="rail-label">Step 03 · Comparison</div>
+          <div className="rail-label">Step 03 · Comparison · {rfqId} — {rfq.title}</div>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">Normalised side by side</h1>
           <p className="mt-1.5 max-w-3xl text-sm text-muted-foreground">
             Every figure below is a landed unit price in {comparison.currency} — vendor rate, converted to the
@@ -133,7 +143,7 @@ function ComparePage() {
             </Label>
           </div>
           <Button asChild>
-            <Link to="/analyst">
+            <Link to="/analyst" search={{ rfq: rfqId }}>
               <Sparkles className="size-4" /> Ask the analyst <ArrowRight className="size-4" />
             </Link>
           </Button>

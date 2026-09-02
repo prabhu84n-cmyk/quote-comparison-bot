@@ -17,12 +17,17 @@ import { Download, History, Loader2, Send, Sparkles, TriangleAlert } from "lucid
 import { useWorkspace } from "@/state/workspace";
 import { askAnalyst, suggestQuestions, type AnalystAnswer } from "@/lib/analyst.functions";
 import { fetchAnalystLog, logAnalystTurn, type AnalystLogRow } from "@/lib/analyst-log";
-import { rfq } from "@/data/rfq";
+import { rfq as seedRfq } from "@/data/rfq";
+import { useRfqStore } from "@/state/rfqs";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Panel, Tag, inr } from "@/components/Primitives";
 
 export const Route = createFileRoute("/analyst")({
+  validateSearch: (search: Record<string, unknown>) =>
+    ({ rfq: typeof search["rfq"] === "string" && search["rfq"] ? search["rfq"] : seedRfq.id }) as {
+      rfq?: string;
+    },
   head: () => ({
     meta: [
       { title: "Analyst Chat — Interrogate the Comparison" },
@@ -57,7 +62,10 @@ interface Turn {
 const COLORS = ["var(--color-chart-1)", "var(--color-chart-2)", "var(--color-chart-3)", "var(--color-chart-4)", "var(--color-chart-5)"];
 
 function AnalystPage() {
-  const { extractions, comparison, awards } = useWorkspace();
+  const { rfq: rfqId = seedRfq.id } = Route.useSearch();
+  const { getRfq } = useRfqStore();
+  const doc = getRfq(rfqId) ?? undefined;
+  const { extractions, comparison, awards } = useWorkspace(rfqId, doc);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
@@ -72,15 +80,15 @@ function AnalystPage() {
   }, [turns, loading]);
 
   useEffect(() => {
-    void fetchAnalystLog().then(setLog);
-  }, []);
+    void fetchAnalystLog(rfqId).then(setLog);
+  }, [rfqId]);
 
   useEffect(() => {
     if (!extractions.length || suggested.length) return;
-    suggestQuestions({ data: { extractions } })
+    suggestQuestions({ data: { extractions, rfqDoc: doc } })
       .then(setSuggested)
       .catch(() => setSuggested([]));
-  }, [extractions, suggested.length]);
+  }, [extractions, suggested.length, doc]);
 
   async function ask(question: string) {
     if (!question.trim() || loading) return;
@@ -95,11 +103,12 @@ function AnalystPage() {
           history: turns.map((t) => ({ role: t.role, content: t.content })),
           extractions,
           awards,
+          rfqDoc: doc,
         },
       });
       setTurns((t) => [...t, { role: "assistant", content: res.answer, payload: res }]);
       const row = await logAnalystTurn({
-        rfqId: rfq.id,
+        rfqId,
         question,
         answer: res.answer,
         payload: res,
@@ -108,7 +117,7 @@ function AnalystPage() {
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       setError(message);
-      const row = await logAnalystTurn({ rfqId: rfq.id, question, error: message });
+      const row = await logAnalystTurn({ rfqId, question, error: message });
       if (row) setLog((l) => [row, ...l]);
     } finally {
       setLoading(false);
@@ -125,7 +134,7 @@ function AnalystPage() {
             The analyst answers only from extracted quote data, so there is nothing to interrogate yet.
           </p>
           <Button className="mt-5" asChild>
-            <Link to="/inbox">Go to the inbox</Link>
+            <Link to="/inbox" search={{ rfq: rfqId }}>Go to the inbox</Link>
           </Button>
         </div>
       </div>

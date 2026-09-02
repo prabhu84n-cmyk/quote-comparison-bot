@@ -51,10 +51,10 @@ export async function logAnalystTurn(entry: {
   return data as unknown as AnalystLogRow;
 }
 
-export async function fetchAnalystLog(limit = 50): Promise<AnalystLogRow[]> {
-  const { data, error } = await supabase
-    .from("analyst_chat_log")
-    .select("*")
+export async function fetchAnalystLog(rfqId?: string, limit = 50): Promise<AnalystLogRow[]> {
+  let q = supabase.from("analyst_chat_log").select("*");
+  if (rfqId) q = q.eq("rfq_id", rfqId);
+  const { data, error } = await q
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) {
