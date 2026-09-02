@@ -13,9 +13,11 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Download, Loader2, Send, Sparkles, TriangleAlert } from "lucide-react";
+import { Download, History, Loader2, Send, Sparkles, TriangleAlert } from "lucide-react";
 import { useWorkspace } from "@/state/workspace";
 import { askAnalyst, suggestQuestions, type AnalystAnswer } from "@/lib/analyst.functions";
+import { fetchAnalystLog, logAnalystTurn, type AnalystLogRow } from "@/lib/analyst-log";
+import { rfq } from "@/data/rfq";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Panel, Tag, inr } from "@/components/Primitives";
@@ -61,11 +63,17 @@ function AnalystPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [suggested, setSuggested] = useState<string[]>([]);
+  const [log, setLog] = useState<AnalystLogRow[]>([]);
+  const [openLog, setOpenLog] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [turns, loading]);
+
+  useEffect(() => {
+    void fetchAnalystLog().then(setLog);
+  }, []);
 
   useEffect(() => {
     if (!extractions.length || suggested.length) return;
@@ -90,8 +98,18 @@ function AnalystPage() {
         },
       });
       setTurns((t) => [...t, { role: "assistant", content: res.answer, payload: res }]);
+      const row = await logAnalystTurn({
+        rfqId: rfq.id,
+        question,
+        answer: res.answer,
+        payload: res,
+      });
+      if (row) setLog((l) => [row, ...l]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const message = e instanceof Error ? e.message : String(e);
+      setError(message);
+      const row = await logAnalystTurn({ rfqId: rfq.id, question, error: message });
+      if (row) setLog((l) => [row, ...l]);
     } finally {
       setLoading(false);
     }
@@ -350,6 +368,41 @@ function AnalystPage() {
               </button>
             ))}
           </div>
+        </Panel>
+        <Panel title="Question history" hint={`${log.length} saved`}>
+          {log.length === 0 ? (
+            <div className="px-4 py-3 text-xs text-muted-foreground">
+              Nothing logged yet. Every question and answer is saved for future reference.
+            </div>
+          ) : (
+            <ul className="max-h-[420px] divide-y divide-border overflow-y-auto text-[13px]">
+              {log.map((row) => (
+                <li key={row.id} className="px-3 py-2">
+                  <button
+                    onClick={() => setOpenLog(openLog === row.id ? null : row.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="rail-label flex items-center gap-1.5">
+                      <History className="size-3" />
+                      {new Date(row.created_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                    </div>
+                    <div className="mt-1 line-clamp-2 text-xs">{row.question}</div>
+                  </button>
+                  {openLog === row.id && (
+                    <div className="mt-2 space-y-2 border-t border-border pt-2 text-xs text-muted-foreground">
+                      <p className="whitespace-pre-wrap">{row.error ?? row.answer}</p>
+                      <button
+                        onClick={() => void ask(row.question)}
+                        className="rounded-sm border border-border px-2 py-1 text-[11px] transition-colors hover:border-signal/60"
+                      >
+                        Ask again
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </Panel>
       </aside>
     </div>
