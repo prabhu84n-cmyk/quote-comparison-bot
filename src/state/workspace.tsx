@@ -20,7 +20,7 @@ interface WorkspaceValue {
   overrides: OverrideMap;
   awards: Record<string, string>;
   runVendor: (v: VendorInbox) => Promise<void>;
-  runAll: () => Promise<void>;
+  runAll: (list?: VendorInbox[]) => Promise<void>;
   resetAll: () => void;
   setOverride: (vendorId: string, lineNo: number, unitPriceLanded: number, note: string) => void;
   clearOverride: (vendorId: string, lineNo: number) => void;
@@ -96,10 +96,18 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     const t0 = performance.now();
     setStates((s) => ({ ...s, [v.id]: { status: "reading", startedAt: Date.now() } }));
     try {
-      const base64 = await fileToBase64(v.file);
+      const base64 = v.base64 ?? (await fileToBase64(v.file));
       setStates((s) => ({ ...s, [v.id]: { ...s[v.id], status: "extracting" } }));
       const result = await extractVendorQuote({
-        data: { vendorId: v.id, base64, mime: MIME[v.kind] ?? "application/octet-stream" },
+        data: {
+          vendorId: v.id,
+          base64,
+          mime: v.mime ?? MIME[v.kind] ?? "application/octet-stream",
+          vendorName: v.name,
+          kind: v.kind,
+          hint: v.hint,
+          ...(v.docType ? { docType: v.docType } : {}),
+        },
       });
       setExtractions((prev) => [...prev.filter((e) => e.vendorId !== v.id), result]);
       setStates((s) => ({
@@ -114,9 +122,9 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const runAll = useCallback(async () => {
+  const runAll = useCallback(async (list?: VendorInbox[]) => {
     // Sequential: the gateway rate limit is shared across the workspace.
-    for (const v of vendors) {
+    for (const v of list ?? vendors) {
       await runVendor(v);
     }
   }, [runVendor]);
