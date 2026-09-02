@@ -36,9 +36,7 @@ export async function buildRfqPptxBlob(rfq: Rfq): Promise<Blob> {
     fontSize: 10,
     color: INK,
     valign: "middle" as const,
-    autoPage: true,
-    autoPageRepeatHeader: true,
-    autoPageLineWeight: -0.4,
+    autoPage: false,
     margin: 5,
   };
 
@@ -92,46 +90,58 @@ export async function buildRfqPptxBlob(rfq: Rfq): Promise<Blob> {
   const instr = slide("Submission instructions");
   instr.addText(rfq.submissionInstructions, { x: 0.5, y: 1.15, w: 12.33, h: 4, fontSize: 14, color: INK });
 
-  // Line items
-  const lines = slide(`Line items (${rfq.lineItems.length})`);
-  lines.addText("Quote the item number shown against each line on your quotation for identification.", {
-    x: 0.5, y: 0.9, w: 12.33, h: 0.3, fontSize: 10, color: MUTED,
-  });
-  lines.addTable(
-    [
-      head(["#", "Item number", "Description", "Specification", "Qty", "UOM", "kg/unit", "Required by", "Substitute", "Unit price"]),
-      ...rfq.lineItems.map((l) =>
-        [
-          String(l.lineNo),
-          l.sku,
-          l.description,
-          l.specification,
-          l.quantity.toLocaleString("en-IN"),
-          l.uom,
-          String(l.kgPerUnit),
-          l.requiredBy,
-          l.substituteAllowed ? "Allowed" : "No",
-          "",
-        ].map((text) => ({ text })),
-      ),
-    ],
-    { ...tableOpts, y: 1.3, fontSize: 8, colW: [0.4, 1.2, 2.5, 3.03, 0.8, 0.7, 0.7, 1.1, 0.9, 1.0] },
-  );
+  // Line items — chunked so nothing runs off a slide
+  const CHUNK = 8;
+  for (let i = 0; i < rfq.lineItems.length; i += CHUNK) {
+    const part = rfq.lineItems.slice(i, i + CHUNK);
+    const total = Math.ceil(rfq.lineItems.length / CHUNK);
+    const n = Math.floor(i / CHUNK) + 1;
+    const lines = slide(
+      `Line items (${rfq.lineItems.length})${total > 1 ? ` — ${n} of ${total}` : ""}`,
+    );
+    lines.addText("Quote the item number shown against each line on your quotation for identification.", {
+      x: 0.5, y: 0.9, w: 12.33, h: 0.3, fontSize: 10, color: MUTED,
+    });
+    lines.addTable(
+      [
+        head(["#", "Item number", "Description", "Specification", "Qty", "UOM", "kg/unit", "Required by", "Substitute", "Unit price"]),
+        ...part.map((l) =>
+          [
+            String(l.lineNo),
+            l.sku,
+            l.description,
+            l.specification,
+            l.quantity.toLocaleString("en-IN"),
+            l.uom,
+            String(l.kgPerUnit),
+            l.requiredBy,
+            l.substituteAllowed ? "Allowed" : "No",
+            "",
+          ].map((text) => ({ text })),
+        ),
+      ],
+      { ...tableOpts, y: 1.3, fontSize: 8, colW: [0.4, 1.2, 2.5, 3.03, 0.8, 0.7, 0.7, 1.1, 0.9, 1.0] },
+    );
+  }
 
-  // Questionnaire
-  const q = slide("Qualification questionnaire");
-  q.addText("Answer every question in full — incomplete questionnaires may disqualify the quote.", {
-    x: 0.5, y: 0.9, w: 12.33, h: 0.3, fontSize: 10, color: MUTED,
-  });
-  q.addTable(
-    [
-      head(["Ref", "Qualification question", "Your response"]),
-      ...rfq.questionnaire.map((item) =>
-        [item.id, item.question, ""].map((text) => ({ text })),
-      ),
-    ],
-    { ...tableOpts, y: 1.3, fontSize: 9, colW: [0.9, 7.43, 4.0] },
-  );
+  // Questionnaire — chunked the same way
+  const QCHUNK = 8;
+  for (let i = 0; i < rfq.questionnaire.length; i += QCHUNK) {
+    const part = rfq.questionnaire.slice(i, i + QCHUNK);
+    const total = Math.ceil(rfq.questionnaire.length / QCHUNK);
+    const n = Math.floor(i / QCHUNK) + 1;
+    const q = slide(`Qualification questionnaire${total > 1 ? ` — ${n} of ${total}` : ""}`);
+    q.addText("Answer every question in full — incomplete questionnaires may disqualify the quote.", {
+      x: 0.5, y: 0.9, w: 12.33, h: 0.3, fontSize: 10, color: MUTED,
+    });
+    q.addTable(
+      [
+        head(["Ref", "Qualification question", "Your response"]),
+        ...part.map((item) => [item.id, item.question, ""].map((text) => ({ text }))),
+      ],
+      { ...tableOpts, y: 1.3, fontSize: 9, colW: [0.9, 7.43, 4.0] },
+    );
+  }
 
   const out = (await pptx.write({ outputType: "blob" })) as Blob;
   return out;
