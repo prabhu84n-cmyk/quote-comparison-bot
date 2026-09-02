@@ -44,6 +44,7 @@ interface WorkspaceValue {
     file: QuestionnaireAttachment,
     doc?: Rfq,
   ) => Promise<void>;
+  removeVendorFor: (rfqId: string, vendorId: string) => void;
 }
 
 const Ctx = createContext<WorkspaceValue | null>(null);
@@ -53,6 +54,7 @@ const FALLBACK_CTX: WorkspaceValue = {
   setSlice: () => {},
   runVendorFor: async () => {},
   attachQuestionnaireFor: async () => {},
+  removeVendorFor: () => {},
 };
 
 
