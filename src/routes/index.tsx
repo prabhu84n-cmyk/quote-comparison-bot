@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowRight, Loader2, Sparkles, TriangleAlert, Check } from "lucide-react";
+import { ArrowRight, Loader2, Sparkles, TriangleAlert, Check, Download } from "lucide-react";
 import { rfq } from "@/data/rfq";
+import { downloadRfqPdf } from "@/lib/rfq-pdf";
 import { rfqCopilot, type CopilotReply, type RfqChange } from "@/lib/copilot.functions";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -83,11 +84,16 @@ function RfqPage() {
           <h1 className="mt-1 max-w-3xl text-2xl font-semibold tracking-tight">{live.title}</h1>
           <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{live.purpose}</p>
         </div>
-        <Button asChild>
-          <Link to="/inbox">
-            Vendor responses <ArrowRight className="size-4" />
-          </Link>
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="secondary" onClick={() => downloadRfqPdf(live)}>
+            <Download className="size-4" /> Download RFQ (PDF)
+          </Button>
+          <Button asChild>
+            <Link to="/inbox">
+              Vendor responses <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-4">
