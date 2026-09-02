@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Panel, Tag } from "@/components/Primitives";
 import { RFQ_STATUSES, type RfqStatus, type RfqSummary } from "@/state/rfqs";
@@ -41,6 +41,8 @@ export function StatusSelect({
 }
 
 export function RfqGrid({ rows }: { rows: RfqSummary[] }) {
+  const navigate = useNavigate();
+
   return (
     <Panel title="Requisitions" hint={`${rows.length} RFQ${rows.length === 1 ? "" : "s"}`}>
       <table className="w-full text-[13px]">
@@ -55,16 +57,12 @@ export function RfqGrid({ rows }: { rows: RfqSummary[] }) {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/40">
-              <td className="num px-3 py-2">
-                <Link
-                  to={r.seed ? "/" : "/rfq/$id"}
-                  params={{ id: r.id }}
-                  className="text-signal hover:underline"
-                >
-                  {r.id}
-                </Link>
-              </td>
+            <tr
+              key={r.id}
+              onClick={() => navigate({ to: "/rfq/$id", params: { id: r.id } })}
+              className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-secondary/40"
+            >
+              <td className="num px-3 py-2 text-signal">{r.id}</td>
               <td className="max-w-[520px] px-3 py-2">{r.title}</td>
               <td className="px-3 py-2 text-muted-foreground">{r.productCategory}</td>
               <td className="num px-3 py-2 text-right text-muted-foreground">{r.lineItems}</td>
