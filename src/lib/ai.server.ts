@@ -96,9 +96,74 @@ export function parseJsonLoose<T>(raw: string): T {
   if (fence?.[1]) s = fence[1].trim();
   const start = s.search(/[{[]/);
   if (start > 0) s = s.slice(start);
-  const lastObj = s.lastIndexOf("}");
-  const lastArr = s.lastIndexOf("]");
-  const end = Math.max(lastObj, lastArr);
-  if (end !== -1) s = s.slice(0, end + 1);
-  return JSON.parse(s) as T;
+
+  try {
+    return JSON.parse(s) as T;
+  } catch {
+    /* fall through to repair */
+  }
+
+  // Trim to the last complete closing brace/bracket, then try again.
+  const lastEnd = Math.max(s.lastIndexOf("}"), s.lastIndexOf("]"));
+  if (lastEnd !== -1) {
+    try {
+      return JSON.parse(s.slice(0, lastEnd + 1)) as T;
+    } catch {
+      /* fall through to structural repair */
+    }
+  }
+
+  return JSON.parse(repairJson(s)) as T;
 }
+
+/**
+ * Repairs a truncated JSON document: drops any trailing partial token, then
+ * closes every string, array and object the model left open. Truncation is the
+ * dominant failure mode when a long extraction hits the model's token ceiling.
+ */
+function repairJson(input: string): string {
+  /** Closes every array/object still open; null when a string is left open. */
+  const close = (text: string): string | null => {
+    const stack: string[] = [];
+    let inStr = false;
+    let esc = false;
+    for (const ch of text) {
+      if (inStr) {
+        if (esc) esc = false;
+        else if (ch === "\\") esc = true;
+        else if (ch === '"') inStr = false;
+        continue;
+      }
+      if (ch === '"') inStr = true;
+      else if (ch === "{") stack.push("}");
+      else if (ch === "[") stack.push("]");
+      else if (ch === "}" || ch === "]") stack.pop();
+    }
+    if (inStr) return null;
+    let out = text;
+    while (stack.length) out += stack.pop();
+    return out;
+  };
+
+  // Chop one trailing token at a time until the closed document parses.
+  let s = input;
+  const token = /\s*(?:"(?:[^"\\]|\\.)*"|[^"{}[\],:]+|[,:{["])\s*$/;
+  for (let i = 0; i < 5000 && s.length > 0; i++) {
+    const candidate = close(s);
+    if (candidate) {
+      try {
+        JSON.parse(candidate);
+        return candidate;
+      } catch {
+        /* keep chopping */
+      }
+    }
+    const next = s.replace(token, "");
+    if (next === s) break;
+    s = next;
+  }
+  throw new Error("Model returned malformed JSON that could not be repaired.");
+}
+
+
+
