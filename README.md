@@ -1,26 +1,77 @@
-# Vendor Quote Comparator
+QuoteLens — AI-Powered RFQ Solution
 
-I want to create a working prototype based on the attached PRD. This is for a case study as part of an job interview. Use the attached product assignment PDF for more context. Build this prototype based on the instructions in the PRD. All the backend plumbing is not required. The emphasis is on how the AI can process the quotes received from vendors and provide a side by side comparison. Also how the AI can reply to the user through natural language processing for the queries they may have regarding the comparison. This part should be a actual working prototype. The email sending and receiving, storing the documents can be a mockup.
+QuoteLens is an AI-powered procurement platform that simplifies the creation, processing, and comparison of Requests for Quotation (RFQs).
 
-This project was built with [Lovable](https://lovable.dev).
+Procurement teams often receive vendor quotes in inconsistent formats—including Excel spreadsheets, Word documents, PDFs, scanned images, and photographs. Reviewing these files manually and converting their contents into a comparable structure is slow, repetitive, and error-prone. QuoteLens allows vendors to continue using their preferred formats while giving buyers a standardized, evidence-backed view of every response.
 
-**Live app**: https://quote-comparison-bot.lovable.app
+What the project does
 
-## Build with Lovable
+Creates structured RFQs through a conversational AI copilot.
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/18bdbf48-d025-4795-87e7-ef803f9d8904).
+Captures RFQ details, line items, specifications, delivery requirements, and vendor questionnaires.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+Processes vendor responses from Word, Excel, PDF, JPEG, JPG, and PNG files.
 
-## Development
+Identifies vendors and matches quoted products to the corresponding RFQ line items.
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Extracts product, commercial, fulfilment, and qualification information.
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+Preserves the buyer-requested value, original vendor-stated value, and AI-normalized value.
+
+Normalizes currencies, units of measure, pricing units, discounts, taxes, freight, insurance, and other charges.
+
+Displays extraction confidence and links normalized values to evidence in the original submission.
+
+Flags missing, ambiguous, incomplete, or unmatched information for buyer review.
+
+Compares vendor responses side by side—including specifications, prices, delivery commitments, compliance, and questionnaire results.
+
+Lets buyers ask natural-language questions and receive data-driven answers as text, tables, charts, or exports.
+
+Supports line-item-level vendor selection and groups awarded items by vendor.
+
+Typical workflow
+
+The buyer creates and reviews an RFQ with the AI copilot.
+
+The RFQ and questionnaire are issued to selected vendors.
+
+Vendor response files are received or uploaded.
+
+AI extracts and structures information from the submitted files.
+
+The buyer reviews and approves uncertain or incomplete values.
+
+Approved responses are normalized and added to a common comparison.
+
+The buyer analyzes the results using filters and natural-language questions.
+
+Winning offers can be selected at the individual line-item level.
+
+Prototype scope
+
+The RFQ-focused prototype demonstrates:
+
+Five vendor responses
+
+Thirty RFQ line items
+
+A vendor qualification questionnaire
+
+Multiple document and image formats
+
+Incomplete and difficult-to-read submissions
+
+Foreign-currency quotations
+
+Incompatible pricing units
+
+Buyer correction and approval of extracted values
+
+Comparable totals that include taxes, discounts, freight, insurance, and other charges
+
+Email transport and related infrastructure may be simulated, but document extraction operates on the submitted files. Comparisons, recommendations, charts, and answers are generated from the extracted data rather than hardcoded demo results.
+
+Project goal
+
+QuoteLens replaces fragmented quote spreadsheets and manual document review with a transparent, auditable procurement workflow—helping buyers compare offers more quickly while retaining control over uncertain AI-generated results.
